@@ -7,10 +7,10 @@ import (
 )
 
 type Model struct {
-	ID        uint       `json:"id" db:"id"`
-	CreatedAt time.Time  `json:"-" db:"created_at"`
+	ID        uint       `json:"id"`
+	CreatedAt time.Time  `json:"-"`
 	UpdatedAt time.Time  `json:"-"`
-	DeletedAt *time.Time `json:"-" db:"deleted_at"`
+	DeletedAt *time.Time `json:"-"`
 }
 
 var (
@@ -20,27 +20,27 @@ var (
 
 type Board struct {
 	Model
-	Name        string `db:"name" json:"name" validate:"max=500,min=1"`
-	Description string `db:"description" json:"description" validate:"max=1000"`
+	Name        string `json:"name" validate:"max=500,min=1"`
+	Description string `json:"description" validate:"max=1000"`
 }
 
 type Column struct {
 	Model
 	Name     string `json:"name" validate:"max=255,min=1"`
-	BoardID  uint   `db:"board" json:"board"`
-	Position uint   `db:"position" json:"position"`
+	BoardID  uint   `json:"board"`
+	Position uint   `json:"position"`
 }
 
 type Task struct {
 	Model
-	Name        string  `db:"name" json:"name,omitempty" validate:"max=500,min=1"`
-	Description string  `db:"description" json:"description,omitempty" validate:"max=5000"`
-	ColumnID    uint    `db:"column" json:"column,omitempty"`
-	Position    float64 `db:"position" json:"column,omitempty"`
+	Name        string  `json:"name,omitempty" validate:"max=500,min=1"`
+	Description string  `json:"description,omitempty" validate:"max=5000"`
+	ColumnID    uint    `json:"column,omitempty"`
+	Position    float64 `json:"column,omitempty"`
 }
 
 type Comment struct {
 	Model
-	Text   string `db:"text" json:"text" validate:"max=5000,min=1"`
-	TaskID uint   `db:"task" json:"task"`
+	Text   string `json:"text" validate:"max=5000,min=1"`
+	TaskID uint   `json:"task"`
 }
