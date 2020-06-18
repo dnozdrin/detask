@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type Model struct {
@@ -12,11 +10,6 @@ type Model struct {
 	UpdatedAt time.Time  `json:"-"`
 	DeletedAt *time.Time `json:"-"`
 }
-
-var (
-	ErrRecordNotFound     = errors.New("record was not found")
-	ErrRecordAlreadyExist = errors.New("this records already exists")
-)
 
 type Board struct {
 	Model
