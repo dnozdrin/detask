@@ -5,22 +5,30 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
+// TaskStorage represents an interface for interaction with tasks DAO
 type TaskStorage interface {
+	// Save will persist the provided task
 	Save(task *m.Task) (*m.Task, error)
-	FindById(id uint) (*m.Task, error)
-	FindAll() ([]*m.Task, error)
+	// FindOneById should return a task with the provided ID
+	FindOneById(id uint) (*m.Task, error)
+	// Find should return a slice of boards pointers sorted by name, that meet the
+	// provided demand
+	Find() ([]*m.Task, error)
+	// Update should update  the name and the description of the task
 	Update(task *m.Task) (*m.Task, error)
+	// Delete should set current deletion time to a task with the provided ID
+	// and to all dependant records
 	Delete(id uint) error
 }
 
+// ColumnService is an interactor for work with tasks
 type TaskService struct {
-	taskStorage    TaskStorage
-	commentStorage CommentStorage
-	validator      v.Validator
+	validator   v.Validator
+	taskStorage TaskStorage
 }
 
 // NewTaskService is a task service constructor
-func NewTaskService(taskStorage TaskStorage, validator v.Validator) *TaskService {
+func NewTaskService(validator v.Validator, taskStorage TaskStorage) *TaskService {
 	return &TaskService{
 		taskStorage: taskStorage,
 		validator:   validator,
@@ -29,40 +37,34 @@ func NewTaskService(taskStorage TaskStorage, validator v.Validator) *TaskService
 
 // Create will create a new task with the provided payload. Returns the
 // operation result with possible validation or saving errors
-func (t *TaskService) Create(task *m.Task) (*m.Task, v.Result) {
-	var result v.Result
-	if result = t.validator.Validate(*task); !result.IsValid() {
-		return nil, result
+func (t *TaskService) Create(task *m.Task) (*m.Task, error) {
+	if err := t.validator.Validate(*task); err != nil {
+		return nil, err
 	}
 
-	task, result.Error = t.taskStorage.Save(task)
-
-	return task, result
+	return t.taskStorage.Save(task)
 }
 
-// FindAll will return all not deleted comments and an error in case
+// Find will return all not deleted comments and an error in case
 // it occurred while fetching records from the storage
-func (t *TaskService) FindAll() ([]*m.Task, error) {
-	return t.taskStorage.FindAll()
+func (t *TaskService) Find() ([]*m.Task, error) {
+	return t.taskStorage.Find()
 }
 
 // FindOneById will return a pointer to the comment requested by id and
 // an error in case it occurred while fetching the record from the storage
 func (t *TaskService) FindOneById(ID uint) (*m.Task, error) {
-	return t.taskStorage.FindById(ID)
+	return t.taskStorage.FindOneById(ID)
 }
 
 // Update will update the task record. Returns the operation result
 // with possible validation or saving errors
-func (t *TaskService) Update(task *m.Task) (*m.Task, v.Result) {
-	var result v.Result
-	if result = t.validator.Validate(*task); !result.IsValid() {
-		return nil, result
+func (t *TaskService) Update(task *m.Task) (*m.Task, error) {
+	if err := t.validator.Validate(*task); err != nil {
+		return nil, err
 	}
 
-	task, result.Error = t.taskStorage.Update(task)
-
-	return task, result
+	return t.taskStorage.Update(task)
 }
 
 // Delete will delete a record with the given ID

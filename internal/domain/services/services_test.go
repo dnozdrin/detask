@@ -6,13 +6,19 @@ import (
 )
 
 func TestNewServices(t *testing.T) {
-	bs := new(MockedBoardStorage)
-	cls := new(MockedColumnStorage)
-	ts := new(MockedTaskStorage)
-	cmts := new(MockedCommentStorage)
-	v := new(MockedValidation)
+	validator := new(MockedValidation)
+	boardStorage := new(MockedBoardStorage)
+	columnStorage := new(MockedColumnStorage)
+	taskStorage := new(MockedTaskStorage)
+	commentStorage := new(MockedCommentStorage)
 
-	services := NewServices(v, bs, cls, ts, cmts)
+	services := NewServices(
+		validator,
+		boardStorage,
+		columnStorage,
+		taskStorage,
+		commentStorage,
+	)
 
 	assert.NotNil(t, services.Board)
 	assert.NotNil(t, services.Column)

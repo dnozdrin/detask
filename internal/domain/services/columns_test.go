@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	m "github.com/dnozdrin/detask/internal/domain/models"
@@ -13,7 +14,7 @@ func TestNewColumnService(t *testing.T) {
 	columnStorage := new(MockedColumnStorage)
 	validation := new(MockedValidation)
 
-	columnService := NewColumnService(columnStorage, validation)
+	columnService := NewColumnService(validation, columnStorage)
 
 	assert.Equal(t, columnStorage, columnService.columnStorage)
 	assert.Equal(t, validation, columnService.validator)
@@ -21,50 +22,53 @@ func TestNewColumnService(t *testing.T) {
 
 func TestColumnService_Create(t *testing.T) {
 	var columnIn = &m.Column{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Save", columnIn).Return(columnIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(resultIn)
+		validation.On("Validate", *columnIn).Return(validationErr)
 
 		columnService := &ColumnService{
-			columnStorage: columnStorage,
 			validator:     validation,
+			columnStorage: columnStorage,
 		}
-		columnOut, resultOut := columnService.Create(columnIn)
+		columnOut, err := columnService.Create(columnIn)
 
-		if assert.NotNil(t, columnOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, columnOut)
+		assert.Nil(t, err)
 	})
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(resultIn)
+		validation.On("Validate", *columnIn).Return(validationErr)
 
 		columnService := &ColumnService{validator: validation}
-		columnOut, resultOut := columnService.Create(columnIn)
+		columnOut, err := columnService.Create(columnIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, columnOut)
 	})
 	t.Run("database_error", func(t *testing.T) {
+		var validationErr *v.Errors
 		err := errors.New("simple error")
 
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Save", columnIn).Return(&m.Column{}, err)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(v.NewResult(nil))
+		validation.On("Validate", *columnIn).Return(validationErr)
 
-		columnService := NewColumnService(columnStorage, validation)
+		columnService := &ColumnService{
+			validator:     validation,
+			columnStorage: columnStorage,
+		}
 		columnOut, resultOut := columnService.Create(columnIn)
 
-		assert.Equal(t, resultOut.Error, err)
+		assert.Equal(t, resultOut, err)
 		assert.Empty(t, columnOut)
 	})
 }
@@ -75,7 +79,7 @@ func TestColumnService_FindOneById(t *testing.T) {
 
 	t.Run("found", func(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("FindById", Anything).Return(columnIn, nil)
+		columnStorage.On("FindOneById", mock.Anything).Return(columnIn, nil)
 		columnService := &ColumnService{columnStorage: columnStorage}
 		columnOut, err := columnService.FindOneById(dummyID)
 		assert.Nil(t, err)
@@ -84,7 +88,7 @@ func TestColumnService_FindOneById(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("FindById", Anything).Return(columnIn, errors.New(""))
+		columnStorage.On("FindOneById", mock.Anything).Return(columnIn, errors.New(""))
 		columnService := &ColumnService{columnStorage: columnStorage}
 		columnOut, err := columnService.FindOneById(dummyID)
 		assert.Error(t, err)
@@ -92,25 +96,25 @@ func TestColumnService_FindOneById(t *testing.T) {
 	})
 }
 
-func TestColumnService_FindAll(t *testing.T) {
+func TestColumnService_Find(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		columnsIn := []*m.Column{
 			{Name: "Test1"},
 			{Name: "Test2"},
 		}
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("FindAll").Return(columnsIn, nil)
+		columnStorage.On("Find").Return(columnsIn, nil)
 		columnService := &ColumnService{columnStorage: columnStorage}
-		columnsOut, err := columnService.FindAll()
+		columnsOut, err := columnService.Find()
 		assert.Nil(t, err)
 		assert.Equal(t, columnsIn, columnsOut)
 	})
 
 	t.Run("not_found", func(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("FindAll", Anything).Return([]*m.Column{}, errors.New(""))
+		columnStorage.On("Find", mock.Anything).Return([]*m.Column{}, errors.New(""))
 		columnService := &ColumnService{columnStorage: columnStorage}
-		columnOut, err := columnService.FindAll()
+		columnOut, err := columnService.Find()
 		assert.Error(t, err)
 		assert.Empty(t, columnOut)
 	})
@@ -118,14 +122,14 @@ func TestColumnService_FindAll(t *testing.T) {
 
 func TestColumnService_Update(t *testing.T) {
 	var columnIn = &m.Column{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
 
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Update", columnIn).Return(columnIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(resultIn)
+		validation.On("Validate", *columnIn).Return(validationErr)
 
 		columnService := &ColumnService{
 			columnStorage: columnStorage,
@@ -133,36 +137,39 @@ func TestColumnService_Update(t *testing.T) {
 		}
 		columnOut, resultOut := columnService.Update(columnIn)
 
-		if assert.NotNil(t, columnOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, columnOut)
+		assert.Nil(t, resultOut)
 	})
 
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(resultIn)
+		validation.On("Validate", *columnIn).Return(validationErr)
 
 		columnService := &ColumnService{validator: validation}
-		columnOut, resultOut := columnService.Update(columnIn)
+		columnOut, err := columnService.Update(columnIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, columnOut)
 	})
 
 	t.Run("database_error", func(t *testing.T) {
+		var validationErr *v.Errors
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Update", columnIn).Return(&m.Column{}, errors.New("simple error"))
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *columnIn).Return(v.NewResult(nil))
+		validation.On("Validate", *columnIn).Return(validationErr)
 
-		columnService := NewColumnService(columnStorage, validation)
+		columnService := &ColumnService{
+			validator:     validation,
+			columnStorage: columnStorage,
+		}
 		columnOut, resultOut := columnService.Update(columnIn)
 
-		assert.Error(t, resultOut.Error)
+		assert.Error(t, resultOut)
 		assert.Empty(t, columnOut)
 	})
 }
@@ -170,7 +177,7 @@ func TestColumnService_Update(t *testing.T) {
 func TestColumnService_Delete(t *testing.T) {
 	t.Run("successful_delete", func(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("Delete", Anything).Return(nil)
+		columnStorage.On("Delete", mock.Anything).Return(nil)
 		columnService := &ColumnService{columnStorage: columnStorage}
 		err := columnService.Delete(0)
 		assert.Nil(t, err)
@@ -179,7 +186,7 @@ func TestColumnService_Delete(t *testing.T) {
 	t.Run("database_error", func(t *testing.T) {
 		errorIn := errors.New("test")
 		columnStorage := new(MockedColumnStorage)
-		columnStorage.On("Delete", Anything).Return(errorIn)
+		columnStorage.On("Delete", mock.Anything).Return(errorIn)
 		columnService := &ColumnService{columnStorage: columnStorage}
 		err := columnService.Delete(0)
 		assert.Equal(t, errorIn, err)

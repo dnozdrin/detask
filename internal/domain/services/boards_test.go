@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	m "github.com/dnozdrin/detask/internal/domain/models"
@@ -12,60 +13,63 @@ import (
 func TestNewBoardService(t *testing.T) {
 	boardStorage := new(MockedBoardStorage)
 	validation := new(MockedValidation)
+	boardService := NewBoardService(validation, boardStorage)
 
-	boardService := NewBoardService(boardStorage, validation)
-
-	assert.Equal(t, boardStorage, boardService.boardStorage)
 	assert.Equal(t, validation, boardService.validator)
+	assert.Equal(t, boardStorage, boardService.boardStorage)
 }
 
 func TestBoardService_Create(t *testing.T) {
 	var boardIn = &m.Board{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
+
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("Save", boardIn).Return(boardIn, nil)
+		boardStorage.On("SaveWithDefaultColumn", boardIn).Return(boardIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(resultIn)
+		validation.On("Validate", *boardIn).Return(validationErr)
 
 		boardService := &BoardService{
-			boardStorage: boardStorage,
 			validator:    validation,
+			boardStorage: boardStorage,
 		}
-		boardOut, resultOut := boardService.Create(boardIn)
+		boardOut, err := boardService.Create(boardIn)
 
-		if assert.NotNil(t, boardOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, boardOut)
+		assert.Nil(t, err)
 	})
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(resultIn)
+		validation.On("Validate", *boardIn).Return(validationErr)
 
 		boardService := &BoardService{validator: validation}
 		boardOut, resultOut := boardService.Create(boardIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, resultOut)
 		assert.Empty(t, boardOut)
 	})
 	t.Run("database_error", func(t *testing.T) {
-		err := errors.New("simple error")
+		var validationErr *v.Errors
+		dbErr := errors.New("simple error")
 
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("Save", boardIn).Return(&m.Board{}, err)
+		boardStorage.On("SaveWithDefaultColumn", boardIn).Return(&m.Board{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(v.NewResult(nil))
+		validation.On("Validate", *boardIn).Return(validationErr)
 
-		boardService := NewBoardService(boardStorage, validation)
-		boardOut, resultOut := boardService.Create(boardIn)
+		boardService := &BoardService{
+			validator:    validation,
+			boardStorage: boardStorage,
+		}
+		boardOut, err := boardService.Create(boardIn)
 
-		assert.Equal(t, resultOut.Error, err)
 		assert.Empty(t, boardOut)
+		assert.Equal(t, err, dbErr)
 	})
 }
 
@@ -75,7 +79,7 @@ func TestBoardService_FindOneById(t *testing.T) {
 
 	t.Run("found", func(t *testing.T) {
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("FindById", Anything).Return(boardIn, nil)
+		boardStorage.On("FindOneById", mock.Anything).Return(boardIn, nil)
 		boardService := &BoardService{boardStorage: boardStorage}
 		boardOut, err := boardService.FindOneById(dummyID)
 		assert.Nil(t, err)
@@ -84,7 +88,7 @@ func TestBoardService_FindOneById(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("FindById", Anything).Return(boardIn, errors.New(""))
+		boardStorage.On("FindOneById", mock.Anything).Return(boardIn, errors.New(""))
 		boardService := &BoardService{boardStorage: boardStorage}
 		boardOut, err := boardService.FindOneById(dummyID)
 		assert.Error(t, err)
@@ -92,25 +96,25 @@ func TestBoardService_FindOneById(t *testing.T) {
 	})
 }
 
-func TestBoardService_FindAll(t *testing.T) {
+func TestBoardService_Find(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		boardsIn := []*m.Board{
 			{Name: "Test1"},
 			{Name: "Test2"},
 		}
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("FindAll").Return(boardsIn, nil)
+		boardStorage.On("Find").Return(boardsIn, nil)
 		boardService := &BoardService{boardStorage: boardStorage}
-		boardsOut, err := boardService.FindAll()
+		boardsOut, err := boardService.Find()
 		assert.Nil(t, err)
 		assert.Equal(t, boardsIn, boardsOut)
 	})
 
 	t.Run("not_found", func(t *testing.T) {
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("FindAll", Anything).Return([]*m.Board{}, errors.New(""))
+		boardStorage.On("Find", mock.Anything).Return([]*m.Board{}, errors.New(mock.Anything))
 		boardService := &BoardService{boardStorage: boardStorage}
-		boardOut, err := boardService.FindAll()
+		boardOut, err := boardService.Find()
 		assert.Error(t, err)
 		assert.Empty(t, boardOut)
 	})
@@ -118,59 +122,63 @@ func TestBoardService_FindAll(t *testing.T) {
 
 func TestBoardService_Update(t *testing.T) {
 	var boardIn = &m.Board{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
 
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		boardStorage := new(MockedBoardStorage)
 		boardStorage.On("Update", boardIn).Return(boardIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(resultIn)
+		validation.On("Validate", *boardIn).Return(validationErr)
 
 		boardService := &BoardService{
 			boardStorage: boardStorage,
 			validator:    validation,
 		}
-		boardOut, resultOut := boardService.Update(boardIn)
+		boardOut, err := boardService.Update(boardIn)
 
-		if assert.NotNil(t, boardOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, boardOut)
+		assert.Nil(t, err)
 	})
 
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(resultIn)
+		validation.On("Validate", *boardIn).Return(validationErr)
 
 		boardService := &BoardService{validator: validation}
 		boardOut, resultOut := boardService.Update(boardIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, resultOut)
 		assert.Empty(t, boardOut)
 	})
 
 	t.Run("database_error", func(t *testing.T) {
+		dbErr := errors.New("simple error")
+		var validationErr *v.Errors
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("Update", boardIn).Return(&m.Board{}, errors.New("simple error"))
+		boardStorage.On("Update", boardIn).Return(&m.Board{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *boardIn).Return(v.NewResult(nil))
+		validation.On("Validate", *boardIn).Return(validationErr)
 
-		boardService := NewBoardService(boardStorage, validation)
-		boardOut, resultOut := boardService.Update(boardIn)
+		boardService := &BoardService{
+			boardStorage: boardStorage,
+			validator:    validation,
+		}
+		boardOut, err := boardService.Update(boardIn)
 
-		assert.Error(t, resultOut.Error)
 		assert.Empty(t, boardOut)
+		assert.Equal(t, err, dbErr)
 	})
 }
 
 func TestBoardService_Delete(t *testing.T) {
 	t.Run("successful_delete", func(t *testing.T) {
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("Delete", Anything).Return(nil)
+		boardStorage.On("Delete", mock.Anything).Return(nil)
 		boardService := &BoardService{boardStorage: boardStorage}
 		err := boardService.Delete(0)
 		assert.Nil(t, err)
@@ -179,7 +187,7 @@ func TestBoardService_Delete(t *testing.T) {
 	t.Run("database_error", func(t *testing.T) {
 		errorIn := errors.New("test")
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("Delete", Anything).Return(errorIn)
+		boardStorage.On("Delete", mock.Anything).Return(errorIn)
 		boardService := &BoardService{boardStorage: boardStorage}
 		err := boardService.Delete(0)
 		assert.Equal(t, errorIn, err)

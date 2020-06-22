@@ -1,40 +1,51 @@
 package validation
 
-import "github.com/pkg/errors"
-
-var (
-	ErrValidationFailed = errors.New("validation failed")
+import (
+	"encoding/json"
+	"github.com/pkg/errors"
 )
+
+const failMessage = "validation failed"
+
+var ErrValidationFailed = errors.New(failMessage)
 
 type Error struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
 }
 
-type Errors []Error
-
-type Result struct {
-	Error    error  `json:"-"`
-	ErrorMsg string `json:"error"`
-	Errors   Errors `json:"errors"`
+type Errors struct {
+	msg    string
+	errors []Error
 }
 
-func NewResult(err error) Result {
-	var message string
-	if err != nil {
-		message = err.Error()
-	}
-	return Result{
-		Error:    err,
-		ErrorMsg: message,
-		Errors:   make(Errors, 0),
+func NewErrors() *Errors {
+	return &Errors{
+		msg:    failMessage,
+		errors: make([]Error, 0),
 	}
 }
 
-func (v Result) IsValid() bool {
-	return len(v.Errors) == 0
+func (e *Errors) Error() string {
+	return e.msg
 }
 
+func (e *Errors) Add(err Error) {
+	e.errors = append(e.errors, err)
+}
+
+// MarshalJSON provides correct marshaling for Errors type
+func (e *Errors) MarshalJSON() ([]byte, error) {
+	input := struct {
+		Msg    string  `json:"error"`
+		Errors []Error `json:"errors"`
+	}{e.msg, e.errors}
+	return json.Marshal(input)
+}
+
+// Validator represents an interface for a struct validation
 type Validator interface {
-	Validate(interface{}) Result
+	// Validate should a pointer to Errors. In case there are no validation errors,
+	// the referenced Errors with have nil value
+	Validate(interface{}) *Errors
 }

@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	m "github.com/dnozdrin/detask/internal/domain/models"
@@ -12,59 +13,60 @@ import (
 func TestNewTaskService(t *testing.T) {
 	taskStorage := new(MockedTaskStorage)
 	validation := new(MockedValidation)
+	taskService := NewTaskService(validation, taskStorage)
 
-	taskService := NewTaskService(taskStorage, validation)
-
-	assert.Equal(t, taskStorage, taskService.taskStorage)
 	assert.Equal(t, validation, taskService.validator)
+	assert.Equal(t, taskStorage, taskService.taskStorage)
 }
 
 func TestTaskService_Create(t *testing.T) {
 	var taskIn = &m.Task{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		taskStorage := new(MockedTaskStorage)
 		taskStorage.On("Save", taskIn).Return(taskIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(resultIn)
+		validation.On("Validate", *taskIn).Return(validationErr)
 
 		taskService := &TaskService{
 			taskStorage: taskStorage,
 			validator:   validation,
 		}
-		taskOut, resultOut := taskService.Create(taskIn)
+		taskOut, err := taskService.Create(taskIn)
 
-		if assert.NotNil(t, taskOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, taskOut)
+		assert.Nil(t, err)
 	})
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(resultIn)
+		validation.On("Validate", *taskIn).Return(validationErr)
 
 		taskService := &TaskService{validator: validation}
-		taskOut, resultOut := taskService.Create(taskIn)
+		taskOut, err := taskService.Create(taskIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, taskOut)
 	})
 	t.Run("database_error", func(t *testing.T) {
-		err := errors.New("simple error")
-
+		dbErr := errors.New("simple error")
+		var validationErr *v.Errors
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("Save", taskIn).Return(&m.Task{}, err)
+		taskStorage.On("Save", taskIn).Return(&m.Task{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(v.NewResult(nil))
+		validation.On("Validate", *taskIn).Return(validationErr)
 
-		taskService := NewTaskService(taskStorage, validation)
-		taskOut, resultOut := taskService.Create(taskIn)
+		taskService := &TaskService{
+			taskStorage: taskStorage,
+			validator:   validation,
+		}
+		taskOut, err := taskService.Create(taskIn)
 
-		assert.Equal(t, resultOut.Error, err)
+		assert.Equal(t, dbErr, err)
 		assert.Empty(t, taskOut)
 	})
 }
@@ -75,7 +77,7 @@ func TestTaskService_FindOneById(t *testing.T) {
 
 	t.Run("found", func(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("FindById", Anything).Return(taskIn, nil)
+		taskStorage.On("FindOneById", mock.Anything).Return(taskIn, nil)
 		taskService := &TaskService{taskStorage: taskStorage}
 		taskOut, err := taskService.FindOneById(dummyID)
 		assert.Nil(t, err)
@@ -84,7 +86,7 @@ func TestTaskService_FindOneById(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("FindById", Anything).Return(taskIn, errors.New(""))
+		taskStorage.On("FindOneById", mock.Anything).Return(taskIn, errors.New(""))
 		taskService := &TaskService{taskStorage: taskStorage}
 		taskOut, err := taskService.FindOneById(dummyID)
 		assert.Error(t, err)
@@ -92,25 +94,25 @@ func TestTaskService_FindOneById(t *testing.T) {
 	})
 }
 
-func TestTaskService_FindAll(t *testing.T) {
+func TestTaskService_Find(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		tasksIn := []*m.Task{
 			{Name: "Test1"},
 			{Name: "Test2"},
 		}
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("FindAll").Return(tasksIn, nil)
+		taskStorage.On("Find").Return(tasksIn, nil)
 		taskService := &TaskService{taskStorage: taskStorage}
-		tasksOut, err := taskService.FindAll()
+		tasksOut, err := taskService.Find()
 		assert.Nil(t, err)
 		assert.Equal(t, tasksIn, tasksOut)
 	})
 
 	t.Run("not_found", func(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("FindAll", Anything).Return([]*m.Task{}, errors.New(""))
+		taskStorage.On("Find", mock.Anything).Return([]*m.Task{}, errors.New(""))
 		taskService := &TaskService{taskStorage: taskStorage}
-		taskOut, err := taskService.FindAll()
+		taskOut, err := taskService.Find()
 		assert.Error(t, err)
 		assert.Empty(t, taskOut)
 	})
@@ -118,51 +120,56 @@ func TestTaskService_FindAll(t *testing.T) {
 
 func TestTaskService_Update(t *testing.T) {
 	var taskIn = &m.Task{Name: "dummy"}
-	var resultIn = v.NewResult(nil)
 
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		taskStorage := new(MockedTaskStorage)
 		taskStorage.On("Update", taskIn).Return(taskIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(resultIn)
+		validation.On("Validate", *taskIn).Return(validationErr)
 
 		taskService := &TaskService{
 			taskStorage: taskStorage,
 			validator:   validation,
 		}
-		taskOut, resultOut := taskService.Update(taskIn)
+		taskOut, err := taskService.Update(taskIn)
 
-		if assert.NotNil(t, taskOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, taskOut)
+		assert.Nil(t, err)
 	})
 
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(resultIn)
+		validation.On("Validate", *taskIn).Return(validationErr)
 
 		taskService := &TaskService{validator: validation}
-		taskOut, resultOut := taskService.Update(taskIn)
+		taskOut, err := taskService.Update(taskIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, taskOut)
 	})
 
 	t.Run("database_error", func(t *testing.T) {
+		var validationErr *v.Errors
+		dbErr := errors.New("simple error")
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("Update", taskIn).Return(&m.Task{}, errors.New("simple error"))
+		taskStorage.On("Update", taskIn).Return(&m.Task{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *taskIn).Return(v.NewResult(nil))
+		validation.On("Validate", *taskIn).Return(validationErr)
 
-		taskService := NewTaskService(taskStorage, validation)
-		taskOut, resultOut := taskService.Update(taskIn)
+		taskService := &TaskService{
+			validator:   validation,
+			taskStorage: taskStorage,
+		}
 
-		assert.Error(t, resultOut.Error)
+		taskOut, err := taskService.Update(taskIn)
+
+		assert.Equal(t, dbErr, err)
 		assert.Empty(t, taskOut)
 	})
 }
@@ -170,7 +177,7 @@ func TestTaskService_Update(t *testing.T) {
 func TestTaskService_Delete(t *testing.T) {
 	t.Run("successful_delete", func(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("Delete", Anything).Return(nil)
+		taskStorage.On("Delete", mock.Anything).Return(nil)
 		taskService := &TaskService{taskStorage: taskStorage}
 		err := taskService.Delete(0)
 		assert.Nil(t, err)
@@ -179,7 +186,7 @@ func TestTaskService_Delete(t *testing.T) {
 	t.Run("database_error", func(t *testing.T) {
 		errorIn := errors.New("test")
 		taskStorage := new(MockedTaskStorage)
-		taskStorage.On("Delete", Anything).Return(errorIn)
+		taskStorage.On("Delete", mock.Anything).Return(errorIn)
 		taskService := &TaskService{taskStorage: taskStorage}
 		err := taskService.Delete(0)
 		assert.Equal(t, errorIn, err)

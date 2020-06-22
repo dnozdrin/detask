@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"github.com/stretchr/testify/mock"
 	"testing"
 
 	m "github.com/dnozdrin/detask/internal/domain/models"
@@ -12,8 +13,7 @@ import (
 func TestNewCommentService(t *testing.T) {
 	commentStorage := new(MockedCommentStorage)
 	validation := new(MockedValidation)
-
-	commentService := NewCommentService(commentStorage, validation)
+	commentService := NewCommentService(validation, commentStorage)
 
 	assert.Equal(t, commentStorage, commentService.commentStorage)
 	assert.Equal(t, validation, commentService.validator)
@@ -21,51 +21,54 @@ func TestNewCommentService(t *testing.T) {
 
 func TestCommentService_Create(t *testing.T) {
 	var commentIn = &m.Comment{Text: "dummy"}
-	var resultIn = v.NewResult(nil)
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		commentStorage := new(MockedCommentStorage)
 		commentStorage.On("Save", commentIn).Return(commentIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(resultIn)
+		validation.On("Validate", *commentIn).Return(validationErr)
 
 		commentService := &CommentService{
 			commentStorage: commentStorage,
 			validator:      validation,
 		}
-		commentOut, resultOut := commentService.Create(commentIn)
+		commentOut, err := commentService.Create(commentIn)
 
-		if assert.NotNil(t, commentOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, commentOut)
+		assert.Nil(t, err)
 	})
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(resultIn)
+		validation.On("Validate", *commentIn).Return(validationErr)
 
 		commentService := &CommentService{validator: validation}
-		commentOut, resultOut := commentService.Create(commentIn)
+		commentOut, err := commentService.Create(commentIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, commentOut)
 	})
 	t.Run("database_error", func(t *testing.T) {
-		err := errors.New("simple error")
-
+		var validationErr *v.Errors
+		dbErr := errors.New("simple error")
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("Save", commentIn).Return(&m.Comment{}, err)
+		commentStorage.On("Save", commentIn).Return(&m.Comment{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(v.NewResult(nil))
+		validation.On("Validate", *commentIn).Return(validationErr)
 
-		commentService := NewCommentService(commentStorage, validation)
-		commentOut, resultOut := commentService.Create(commentIn)
+		commentService := &CommentService{
+			commentStorage: commentStorage,
+			validator:      validation,
+		}
 
-		assert.Equal(t, resultOut.Error, err)
+		commentOut, err := commentService.Create(commentIn)
+
 		assert.Empty(t, commentOut)
+		assert.Equal(t, err, dbErr)
 	})
 }
 
@@ -75,7 +78,7 @@ func TestCommentService_FindOneById(t *testing.T) {
 
 	t.Run("found", func(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("FindById", Anything).Return(commentIn, nil)
+		commentStorage.On("FindOneById", mock.Anything).Return(commentIn, nil)
 		commentService := &CommentService{commentStorage: commentStorage}
 		commentOut, err := commentService.FindOneById(dummyID)
 		assert.Nil(t, err)
@@ -84,7 +87,7 @@ func TestCommentService_FindOneById(t *testing.T) {
 
 	t.Run("not_found", func(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("FindById", Anything).Return(commentIn, errors.New(""))
+		commentStorage.On("FindOneById", mock.Anything).Return(commentIn, errors.New(""))
 		commentService := &CommentService{commentStorage: commentStorage}
 		commentOut, err := commentService.FindOneById(dummyID)
 		assert.Error(t, err)
@@ -92,25 +95,25 @@ func TestCommentService_FindOneById(t *testing.T) {
 	})
 }
 
-func TestCommentService_FindAll(t *testing.T) {
+func TestCommentService_Find(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		commentsIn := []*m.Comment{
 			{Text: "Test1"},
 			{Text: "Test2"},
 		}
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("FindAll").Return(commentsIn, nil)
+		commentStorage.On("Find").Return(commentsIn, nil)
 		commentService := &CommentService{commentStorage: commentStorage}
-		commentsOut, err := commentService.FindAll()
+		commentsOut, err := commentService.Find()
 		assert.Nil(t, err)
 		assert.Equal(t, commentsIn, commentsOut)
 	})
 
 	t.Run("not_found", func(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("FindAll", Anything).Return([]*m.Comment{}, errors.New(""))
+		commentStorage.On("Find", mock.Anything).Return([]*m.Comment{}, errors.New(""))
 		commentService := &CommentService{commentStorage: commentStorage}
-		commentOut, err := commentService.FindAll()
+		commentOut, err := commentService.Find()
 		assert.Error(t, err)
 		assert.Empty(t, commentOut)
 	})
@@ -118,59 +121,63 @@ func TestCommentService_FindAll(t *testing.T) {
 
 func TestCommentService_Update(t *testing.T) {
 	var commentIn = &m.Comment{Text: "dummy"}
-	var resultIn = v.NewResult(nil)
 
 	t.Run("success", func(t *testing.T) {
+		var validationErr *v.Errors
 		commentStorage := new(MockedCommentStorage)
 		commentStorage.On("Update", commentIn).Return(commentIn, nil)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(resultIn)
+		validation.On("Validate", *commentIn).Return(validationErr)
 
 		commentService := &CommentService{
 			commentStorage: commentStorage,
 			validator:      validation,
 		}
-		commentOut, resultOut := commentService.Update(commentIn)
+		commentOut, err := commentService.Update(commentIn)
 
-		if assert.NotNil(t, commentOut) {
-			assert.Equal(t, resultIn, resultOut)
-		}
+		assert.NotNil(t, commentOut)
+		assert.Nil(t, err)
 	})
 
 	t.Run("validation_error", func(t *testing.T) {
-		resultIn = v.NewResult(v.ErrValidationFailed)
-		resultIn.Errors = append(resultIn.Errors, v.Error{Field: "dummy", Message: "test"})
+		validationErr := v.NewErrors()
+		validationErr.Add(v.Error{Field: "dummy", Message: "test"})
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(resultIn)
+		validation.On("Validate", *commentIn).Return(validationErr)
 
 		commentService := &CommentService{validator: validation}
-		commentOut, resultOut := commentService.Update(commentIn)
+		commentOut, err := commentService.Update(commentIn)
 
-		assert.Equal(t, resultIn, resultOut)
+		assert.Equal(t, validationErr, err)
 		assert.Empty(t, commentOut)
 	})
 
 	t.Run("database_error", func(t *testing.T) {
+		dbErr := errors.New("simple error")
+		var validationErr *v.Errors
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("Update", commentIn).Return(&m.Comment{}, errors.New("simple error"))
+		commentStorage.On("Update", commentIn).Return(&m.Comment{}, dbErr)
 
 		validation := new(MockedValidation)
-		validation.On("Validate", *commentIn).Return(v.NewResult(nil))
+		validation.On("Validate", *commentIn).Return(validationErr)
 
-		commentService := NewCommentService(commentStorage, validation)
-		commentOut, resultOut := commentService.Update(commentIn)
+		commentService := &CommentService{
+			commentStorage: commentStorage,
+			validator:      validation,
+		}
+		commentOut, err := commentService.Update(commentIn)
 
-		assert.Error(t, resultOut.Error)
 		assert.Empty(t, commentOut)
+		assert.Equal(t, err, dbErr)
 	})
 }
 
 func TestCommentService_Delete(t *testing.T) {
 	t.Run("successful_delete", func(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("Delete", Anything).Return(nil)
+		commentStorage.On("Delete", mock.Anything).Return(nil)
 		commentService := &CommentService{commentStorage: commentStorage}
 		err := commentService.Delete(0)
 		assert.Nil(t, err)
@@ -179,7 +186,7 @@ func TestCommentService_Delete(t *testing.T) {
 	t.Run("database_error", func(t *testing.T) {
 		errorIn := errors.New("test")
 		commentStorage := new(MockedCommentStorage)
-		commentStorage.On("Delete", Anything).Return(errorIn)
+		commentStorage.On("Delete", mock.Anything).Return(errorIn)
 		commentService := &CommentService{commentStorage: commentStorage}
 		err := commentService.Delete(0)
 		assert.Equal(t, errorIn, err)

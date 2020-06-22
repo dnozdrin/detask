@@ -17,11 +17,17 @@ var (
 	ErrRecordAlreadyExist = errors.New("record already exists")
 )
 
-func NewServices(v validation.Validator, bs BoardStorage, cls ColumnStorage, ts TaskStorage, cmts CommentStorage) *Services {
+func NewServices(
+	validator validation.Validator,
+	boardStorage BoardStorage,
+	columnStorage ColumnStorage,
+	taskStorage TaskStorage,
+	commentStorage CommentStorage,
+) *Services {
 	return &Services{
-		Board:   NewBoardService(bs, v),
-		Column:  NewColumnService(cls, v),
-		Task:    NewTaskService(ts, v),
-		Comment: NewCommentService(cmts, v),
+		Board:   NewBoardService(validator, boardStorage),
+		Column:  NewColumnService(validator, columnStorage),
+		Task:    NewTaskService(validator, taskStorage),
+		Comment: NewCommentService(validator, commentStorage),
 	}
 }

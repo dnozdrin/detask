@@ -5,21 +5,30 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
+// CommentStorage represents an interface for interaction with comments DAO
 type CommentStorage interface {
+	// Save will persist the provided comment
 	Save(comment *m.Comment) (*m.Comment, error)
-	FindById(id uint) (*m.Comment, error)
-	FindAll() ([]*m.Comment, error)
+	// FindOneById should return a comment with the provided ID
+	FindOneById(id uint) (*m.Comment, error)
+	// Find should return a slice of comments pointers sorted by creation date
+	// (from newest to oldest), that meet the provided demand
+	Find() ([]*m.Comment, error)
+	// Update should update the comment text
 	Update(comment *m.Comment) (*m.Comment, error)
+	// Delete should set current deletion time to a comment with the provided ID
+	// and to all dependant records
 	Delete(id uint) error
 }
 
+// ColumnService is an interactor for work with comments
 type CommentService struct {
-	commentStorage CommentStorage
 	validator      v.Validator
+	commentStorage CommentStorage
 }
 
 // CommentService is a comment service constructor
-func NewCommentService(commentStorage CommentStorage, validator v.Validator) *CommentService {
+func NewCommentService(validator v.Validator, commentStorage CommentStorage) *CommentService {
 	return &CommentService{
 		commentStorage: commentStorage,
 		validator:      validator,
@@ -28,40 +37,34 @@ func NewCommentService(commentStorage CommentStorage, validator v.Validator) *Co
 
 // Create will create a new comment  with the provided payload. Returns the
 // operation result with possible validation or saving errors
-func (c *CommentService) Create(comment *m.Comment) (*m.Comment, v.Result) {
-	var result v.Result
-	if result = c.validator.Validate(*comment); !result.IsValid() {
-		return nil, result
+func (c *CommentService) Create(comment *m.Comment) (*m.Comment, error) {
+	if err := c.validator.Validate(*comment); err != nil {
+		return nil, err
 	}
 
-	comment, result.Error = c.commentStorage.Save(comment)
-
-	return comment, result
+	return c.commentStorage.Save(comment)
 }
 
-// FindAll will return all not deleted comments and an error in case
+// Find will return all not deleted comments and an error in case
 // it occurred while fetching records from the storage
-func (c *CommentService) FindAll() ([]*m.Comment, error) {
-	return c.commentStorage.FindAll()
+func (c *CommentService) Find() ([]*m.Comment, error) {
+	return c.commentStorage.Find()
 }
 
 // FindOneById will return a pointer to the comment requested by id and
 // an error in case it occurred while fetching the record from the storage
 func (c *CommentService) FindOneById(ID uint) (*m.Comment, error) {
-	return c.commentStorage.FindById(ID)
+	return c.commentStorage.FindOneById(ID)
 }
 
 // Update will update the comment record. Returns the operation result
 // with possible validation or saving errors
-func (c *CommentService) Update(comment *m.Comment) (*m.Comment, v.Result) {
-	var result v.Result
-	if result = c.validator.Validate(*comment); !result.IsValid() {
-		return nil, result
+func (c *CommentService) Update(comment *m.Comment) (*m.Comment, error) {
+	if err := c.validator.Validate(*comment); err != nil {
+		return nil, err
 	}
 
-	comment, result.Error = c.commentStorage.Update(comment)
-
-	return comment, result
+	return c.commentStorage.Update(comment)
 }
 
 // Delete will delete a record with the given ID
