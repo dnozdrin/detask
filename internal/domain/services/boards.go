@@ -1,4 +1,3 @@
-// todo: consider patch implementation
 // todo: consider adding filter by constraints
 // todo: add error wrappers
 package services

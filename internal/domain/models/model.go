@@ -21,8 +21,8 @@ type Board struct {
 type Column struct {
 	Model
 	Name     string  `json:"name" validate:"max=255,min=1"`
-	BoardID  uint    `json:"board"`
-	Position float64 `json:"position"`
+	BoardID  uint    `json:"board" validate:"required"`
+	Position float64 `json:"position" validate:"required"`
 }
 
 // Task represents a task
@@ -30,13 +30,13 @@ type Task struct {
 	Model
 	Name        string  `json:"name,omitempty" validate:"max=500,min=1"`
 	Description string  `json:"description,omitempty" validate:"max=5000"`
-	ColumnID    uint    `json:"column,omitempty"`
-	Position    float64 `json:"column,omitempty"`
+	ColumnID    uint    `json:"column" validate:"required"`
+	Position    float64 `json:"column" validate:"required"`
 }
 
 // Comment represents a comment to a task
 type Comment struct {
 	Model
 	Text   string `json:"text" validate:"max=5000,min=1"`
-	TaskID uint   `json:"task"`
+	TaskID uint   `json:"task" validate:"required"`
 }
