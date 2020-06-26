@@ -104,7 +104,7 @@ func TestCommentService_Find(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
 		commentStorage.On("Find").Return(commentsIn, nil)
 		commentService := &CommentService{commentStorage: commentStorage}
-		commentsOut, err := commentService.Find()
+		commentsOut, err := commentService.Find(make(CommentDemand))
 		assert.Nil(t, err)
 		assert.Equal(t, commentsIn, commentsOut)
 	})
@@ -113,7 +113,7 @@ func TestCommentService_Find(t *testing.T) {
 		commentStorage := new(MockedCommentStorage)
 		commentStorage.On("Find", mock.Anything).Return([]*m.Comment{}, errors.New(""))
 		commentService := &CommentService{commentStorage: commentStorage}
-		commentOut, err := commentService.Find()
+		commentOut, err := commentService.Find(make(CommentDemand))
 		assert.Error(t, err)
 		assert.Empty(t, commentOut)
 	})

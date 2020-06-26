@@ -8,17 +8,17 @@ import (
 // TaskStorage represents an interface for interaction with tasks DAO
 type TaskStorage interface {
 	// Save will persist the provided task
-	Save(task *m.Task) (*m.Task, error)
+	Save(*m.Task) (*m.Task, error)
 	// FindOneById should return a task with the provided ID
-	FindOneById(id uint) (*m.Task, error)
+	FindOneById(uint) (*m.Task, error)
 	// Find should return a slice of boards pointers sorted by name, that meet the
 	// provided demand
-	Find() ([]*m.Task, error)
+	Find(TaskDemand) ([]*m.Task, error)
 	// Update should update  the name and the description of the task
-	Update(task *m.Task) (*m.Task, error)
+	Update(*m.Task) (*m.Task, error)
 	// Delete should set current deletion time to a task with the provided ID
 	// and to all dependant records
-	Delete(id uint) error
+	Delete(uint) error
 }
 
 // ColumnService is an interactor for work with tasks
@@ -45,13 +45,13 @@ func (t *TaskService) Create(task *m.Task) (*m.Task, error) {
 	return t.taskStorage.Save(task)
 }
 
-// Find will return all not deleted comments and an error in case
-// it occurred while fetching records from the storage
-func (t *TaskService) Find() ([]*m.Task, error) {
-	return t.taskStorage.Find()
+// Find will return all tasks that meet the provided demand and an
+// error in case it occurred while fetching records from the storage
+func (t *TaskService) Find(demand TaskDemand) ([]*m.Task, error) {
+	return t.taskStorage.Find(demand)
 }
 
-// FindOneById will return a pointer to the comment requested by id and
+// FindOneById will return a pointer to the task requested by id and
 // an error in case it occurred while fetching the record from the storage
 func (t *TaskService) FindOneById(ID uint) (*m.Task, error) {
 	return t.taskStorage.FindOneById(ID)

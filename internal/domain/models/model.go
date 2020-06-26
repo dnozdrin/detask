@@ -4,10 +4,9 @@ import "time"
 
 // Model represents the default fields for persisted structures
 type Model struct {
-	ID        uint       `json:"id"`
-	CreatedAt time.Time  `json:"-"`
-	UpdatedAt time.Time  `json:"-"`
-	DeletedAt *time.Time `json:"-"`
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 // Board represents a board (project)
@@ -31,7 +30,7 @@ type Task struct {
 	Name        string  `json:"name,omitempty" validate:"max=500,min=1"`
 	Description string  `json:"description,omitempty" validate:"max=5000"`
 	ColumnID    uint    `json:"column" validate:"required"`
-	Position    float64 `json:"column" validate:"required"`
+	Position    float64 `json:"position" validate:"required"`
 }
 
 // Comment represents a comment to a task

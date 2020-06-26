@@ -103,7 +103,7 @@ func TestTaskService_Find(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
 		taskStorage.On("Find").Return(tasksIn, nil)
 		taskService := &TaskService{taskStorage: taskStorage}
-		tasksOut, err := taskService.Find()
+		tasksOut, err := taskService.Find(make(TaskDemand))
 		assert.Nil(t, err)
 		assert.Equal(t, tasksIn, tasksOut)
 	})
@@ -112,7 +112,7 @@ func TestTaskService_Find(t *testing.T) {
 		taskStorage := new(MockedTaskStorage)
 		taskStorage.On("Find", mock.Anything).Return([]*m.Task{}, errors.New(""))
 		taskService := &TaskService{taskStorage: taskStorage}
-		taskOut, err := taskService.Find()
+		taskOut, err := taskService.Find(make(TaskDemand))
 		assert.Error(t, err)
 		assert.Empty(t, taskOut)
 	})

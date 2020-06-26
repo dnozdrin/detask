@@ -1,4 +1,3 @@
-// todo: consider adding filter by constraints
 // todo: add error wrappers
 package services
 
@@ -11,17 +10,17 @@ import (
 type BoardStorage interface {
 	// SaveWithDefaultColumn should persist the provided board and create a default
 	// column for it
-	SaveWithDefaultColumn(board *m.Board) (*m.Board, error)
+	SaveWithDefaultColumn(*m.Board) (*m.Board, error)
 	// FindOneById should return a board with the provided ID
-	FindOneById(ID uint) (*m.Board, error)
+	FindOneById(uint) (*m.Board, error)
 	// Find should return a slice of boards pointers sorted by name, that meet the
 	// provided demand
 	Find() ([]*m.Board, error)
 	// Update should update all board fields by the provided data
-	Update(board *m.Board) (*m.Board, error)
+	Update(*m.Board) (*m.Board, error)
 	// Delete should set current deletion time to a board with the provided ID
 	// and to all dependant records
-	Delete(ID uint) error
+	Delete(uint) error
 }
 
 // BoardService is an interactor for work with boards

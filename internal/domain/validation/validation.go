@@ -2,12 +2,9 @@ package validation
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 )
 
 const failMessage = "validation failed"
-
-var ErrValidationFailed = errors.New(failMessage)
 
 type Error struct {
 	Field   string `json:"field"`

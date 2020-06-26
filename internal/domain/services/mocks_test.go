@@ -15,6 +15,8 @@ func (val *MockedValidation) Validate(input interface{}) *v.Errors {
 	return returnValues.Get(0).(*v.Errors)
 }
 
+var _ BoardStorage = new(MockedBoardStorage)
+
 type MockedBoardStorage struct {
 	mock.Mock
 }
@@ -43,6 +45,8 @@ func (bs *MockedBoardStorage) Delete(ID uint) error {
 	returnValues := bs.Called(ID)
 	return returnValues.Error(0)
 }
+
+var _ ColumnStorage = new(MockedColumnStorage)
 
 type MockedColumnStorage struct {
 	mock.Mock
@@ -73,6 +77,8 @@ func (cs *MockedColumnStorage) Delete(ID uint) error {
 	return returnValues.Error(0)
 }
 
+var _ TaskStorage = new(MockedTaskStorage)
+
 type MockedTaskStorage struct {
 	mock.Mock
 }
@@ -87,8 +93,8 @@ func (ts *MockedTaskStorage) FindOneById(ID uint) (*m.Task, error) {
 	return returnValues.Get(0).(*m.Task), returnValues.Error(1)
 }
 
-func (ts *MockedTaskStorage) Find() ([]*m.Task, error) {
-	returnValues := ts.Called()
+func (ts *MockedTaskStorage) Find(demand TaskDemand) ([]*m.Task, error) {
+	returnValues := ts.Called(demand)
 	return returnValues.Get(0).([]*m.Task), returnValues.Error(1)
 }
 
@@ -101,6 +107,8 @@ func (ts *MockedTaskStorage) Delete(ID uint) error {
 	returnValues := ts.Called(ID)
 	return returnValues.Error(0)
 }
+
+var _ CommentStorage = new(MockedCommentStorage)
 
 type MockedCommentStorage struct {
 	mock.Mock
@@ -116,8 +124,8 @@ func (coms *MockedCommentStorage) FindOneById(ID uint) (*m.Comment, error) {
 	return returnValues.Get(0).(*m.Comment), returnValues.Error(1)
 }
 
-func (coms *MockedCommentStorage) Find() ([]*m.Comment, error) {
-	returnValues := coms.Called()
+func (coms *MockedCommentStorage) Find(demand CommentDemand) ([]*m.Comment, error) {
+	returnValues := coms.Called(demand)
 	return returnValues.Get(0).([]*m.Comment), returnValues.Error(1)
 }
 

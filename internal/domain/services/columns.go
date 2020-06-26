@@ -3,22 +3,29 @@ package services
 import (
 	m "github.com/dnozdrin/detask/internal/domain/models"
 	v "github.com/dnozdrin/detask/internal/domain/validation"
+	"github.com/pkg/errors"
+)
+
+const DefaultColPos = 65535
+
+var (
+	ErrLastColumn = errors.New("the last column can not be deleted")
 )
 
 // ColumnStorage represents an interface for interaction with columns DAO
 type ColumnStorage interface {
 	// Save will persist the provided column
-	Save(column *m.Column) (*m.Column, error)
+	Save(*m.Column) (*m.Column, error)
 	// FindOneById should return a column with the provided ID
-	FindOneById(ID uint) (*m.Column, error)
+	FindOneById(uint) (*m.Column, error)
 	// Find should return a slice of columns pointers sorted by position, that meet the
 	// provided demand
 	Find() ([]*m.Column, error)
 	// Update should update all column fields by the provided data
-	Update(column *m.Column) (*m.Column, error)
+	Update(*m.Column) (*m.Column, error)
 	// Delete should set current deletion time to a column with the provided ID
 	// and to all dependant records
-	Delete(ID uint) error
+	Delete(uint) error
 }
 
 // ColumnService is an interactor for work with columns
