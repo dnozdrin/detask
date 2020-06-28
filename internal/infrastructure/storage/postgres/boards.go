@@ -4,6 +4,7 @@
 // todo: return wrapped predefined errors for different actions
 // todo: consider adding more diverse errors on integrity_constraint_violation error
 // todo: improve work with column position change
+// todo: review transaction isolation levels
 package postgres
 
 import (

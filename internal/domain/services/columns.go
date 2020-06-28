@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const DefaultColPos = 65535
+const DefaultColPos = 1000
 
 var (
 	ErrLastColumn = errors.New("the last column can not be deleted")

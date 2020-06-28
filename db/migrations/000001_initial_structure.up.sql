@@ -27,14 +27,15 @@ create table columns
 create table tasks
 (
     id          serial primary key,
-    created_at  timestamp     not null default now(),
-    updated_at  timestamp     not null default now(),
+    created_at  timestamp not null default now(),
+    updated_at  timestamp not null default now(),
 
     name        varchar(500),
     description varchar(5000),
-    "column"    int           not null,
-    position    serial unique not null,
+    "column"    int       not null,
+    position    serial    not null,
 
+    unique (position, "column"),
     foreign key ("column") references columns (id) on delete cascade
 );
 

@@ -102,7 +102,7 @@ func (t TaskDAO) Find(demand services.TaskDemand) ([]*models.Task, error) {
 		where = where + fmt.Sprintf(" and t.column = %d", columnID)
 	}
 
-	rows, err := t.db.Query(fmt.Sprintf(`select %s from tasks t %s where %s;`, querySelect, join, where))
+	rows, err := t.db.Query(fmt.Sprintf(`select %s from tasks t %s where %s order by position;`, querySelect, join, where))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,12 @@ func (t TaskDAO) Update(task *models.Task) (*models.Task, error) {
 	); err != nil {
 		if err == sql.ErrNoRows {
 			err = services.ErrRecordNotFound
+		} else if pgErr, ok := err.(*pq.Error); ok &&
+			pgErr.Constraint == "tasks_position_column_key" &&
+			pgErr.Code.Class().Name() == "integrity_constraint_violation" {
+			err = services.ErrPositionDuplicate
 		}
+
 		return nil, err
 	}
 
