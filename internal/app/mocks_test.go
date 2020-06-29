@@ -34,6 +34,10 @@ func (l *LoggerMock) Warnf(format string, args ...interface{}) {
 	l.Called(format, args)
 }
 
+func (l *LoggerMock) Warn(args ...interface{}) {
+	l.Called(args)
+}
+
 func (l *LoggerMock) Debugf(format string, args ...interface{}) {
 	l.Called(format, args)
 }

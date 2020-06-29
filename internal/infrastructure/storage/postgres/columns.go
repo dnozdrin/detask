@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/dnozdrin/detask/internal/app"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
@@ -13,11 +13,11 @@ import (
 // ColumnDAO is a data access object for columns
 type ColumnDAO struct {
 	db  *sql.DB
-	log app.Logger
+	log log.Logger
 }
 
 // NewColumnDAO represents a ColumnDAO constructor
-func NewColumnDAO(db *sql.DB, log app.Logger) *ColumnDAO {
+func NewColumnDAO(db *sql.DB, log log.Logger) *ColumnDAO {
 	return &ColumnDAO{
 		db:  db,
 		log: log,

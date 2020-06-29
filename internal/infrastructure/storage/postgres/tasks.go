@@ -3,9 +3,9 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"time"
 
-	"github.com/dnozdrin/detask/internal/app"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
 
@@ -16,11 +16,11 @@ import (
 // TaskDAO is a data access object for boards
 type TaskDAO struct {
 	db  *sql.DB
-	log app.Logger
+	log log.Logger
 }
 
 // NewTaskDAO represents a TaskDAO constructor
-func NewTaskDAO(db *sql.DB, log app.Logger) *TaskDAO {
+func NewTaskDAO(db *sql.DB, log log.Logger) *TaskDAO {
 	return &TaskDAO{
 		db:  db,
 		log: log,

@@ -9,9 +9,9 @@ package postgres
 
 import (
 	"database/sql"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"time"
 
-	"github.com/dnozdrin/detask/internal/app"
 	"github.com/dnozdrin/detask/internal/domain/services"
 
 	"github.com/dnozdrin/detask/internal/domain/models"
@@ -22,11 +22,11 @@ import (
 // BoardDAO is a data access object for boards
 type BoardDAO struct {
 	db  *sql.DB
-	log app.Logger
+	log log.Logger
 }
 
 // NewBoardDAO represents a BoardDAO constructor
-func NewBoardDAO(db *sql.DB, log app.Logger) *BoardDAO {
+func NewBoardDAO(db *sql.DB, log log.Logger) *BoardDAO {
 	return &BoardDAO{
 		db:  db,
 		log: log,

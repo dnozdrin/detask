@@ -3,9 +3,9 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"time"
 
-	"github.com/dnozdrin/detask/internal/app"
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
@@ -15,11 +15,11 @@ import (
 // CommentsDAO is a data access object for comments
 type CommentsDAO struct {
 	db  *sql.DB
-	log app.Logger
+	log log.Logger
 }
 
 // NewCommentsDAO represents a CommentsDAO constructor
-func NewCommentsDAO(db *sql.DB, log app.Logger) *CommentsDAO {
+func NewCommentsDAO(db *sql.DB, log log.Logger) *CommentsDAO {
 	return &CommentsDAO{
 		db:  db,
 		log: log,

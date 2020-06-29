@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/dnozdrin/detask/internal/app/log"
 	"reflect"
 	"strings"
 
@@ -10,12 +11,12 @@ import (
 
 // Validator represents an implementation of validation feature
 type Validator struct {
-	log      Logger
+	log      log.Logger
 	validate *pkg.Validate
 }
 
 // NewValidator is a Validator constructor
-func NewValidator(validate *pkg.Validate, log Logger) *Validator {
+func NewValidator(validate *pkg.Validate, log log.Logger) *Validator {
 	return &Validator{
 		validate: validate,
 		log:      log,
