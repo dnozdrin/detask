@@ -1,8 +1,7 @@
-package main
+package app
 
 import (
 	"database/sql"
-	internal "github.com/dnozdrin/detask/internal/app"
 	"github.com/dnozdrin/detask/internal/delivery/http"
 	"github.com/dnozdrin/detask/internal/delivery/http/rest"
 	sv "github.com/dnozdrin/detask/internal/domain/services"
@@ -16,20 +15,15 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	prod = "production"
-	test = "testing"
-)
-
 // App represents the main application handler
-type app struct {
-	config appConfig
-	dbConf dbConfig
+type App struct {
+	config Config
+	dbConf DbConfig
 
-	db *sql.DB
+	DB     *sql.DB
+	Router *http.Router
 
-	router *http.Router
-	log    *zap.SugaredLogger
+	log *zap.SugaredLogger
 
 	boardService   rest.BoardService
 	columnService  rest.ColumnService
@@ -38,7 +32,7 @@ type app struct {
 }
 
 // Initialize loads all required for application run dependencies
-func (a *app) initialize(dbConf dbConfig, config appConfig) {
+func (a *App) Initialize(dbConf DbConfig, config Config) {
 	a.config = config
 	a.dbConf = dbConf
 
@@ -49,21 +43,21 @@ func (a *app) initialize(dbConf dbConfig, config appConfig) {
 	a.setupDelivery()
 }
 
-func (a *app) connectDB() {
+func (a *App) connectDB() {
 	var err error
 
-	a.db, err = sql.Open(a.dbConf.driver, a.dbConf.toConnString())
+	a.DB, err = sql.Open(a.dbConf.driver, a.dbConf.toConnString())
 	if err != nil {
 		a.log.Fatalf("DB connection error: %v", err)
 	}
 
-	if err = a.db.Ping(); err != nil {
+	if err = a.DB.Ping(); err != nil {
 		a.log.Fatalf("DB connection verification error: %v", err)
 	}
 }
 
-func (a *app) migrateDb() {
-	driver, err := mg.WithInstance(a.db, &mg.Config{})
+func (a *App) migrateDb() {
+	driver, err := mg.WithInstance(a.DB, &mg.Config{})
 	m, err := migrate.NewWithDatabaseInstance(a.dbConf.mgPath, a.dbConf.driver, driver)
 	if err != nil {
 		a.log.Fatalf("DB migration: failed: %v", err)
@@ -79,18 +73,33 @@ func (a *app) migrateDb() {
 	}
 }
 
-func (a *app) loadLogger() {
-	var logInitFunc func(options ...zap.Option) (*zap.Logger, error)
+func (a *App) loadLogger() {
+	defer func() {
+		if r := recover(); r != nil {
+			a.log.Fatalf("logger initialization failed: %v", r)
+		}
+	}()
+	var cfg zap.Config
 	switch a.config.context {
-	case prod:
-		cfg := zap.NewProductionConfig()
+
+	case Prod:
+		cfg = zap.NewProductionConfig()
 		cfg.OutputPaths = []string{a.config.logPath}
-		logInitFunc = cfg.Build
+	case Test:
+		cfg = zap.Config{
+			Level:             zap.NewAtomicLevelAt(zap.InfoLevel),
+			Development:       true,
+			DisableStacktrace: true,
+			Encoding:          "console",
+			EncoderConfig:     zap.NewDevelopmentEncoderConfig(),
+			OutputPaths:       []string{a.config.logPath},
+			ErrorOutputPaths:  []string{"stderr"},
+		}
 	default:
-		logInitFunc = zap.NewDevelopment
+		cfg = zap.NewDevelopmentConfig()
 	}
 
-	zapLogger, err := logInitFunc()
+	zapLogger, err := cfg.Build()
 	if err != nil {
 		a.log.Fatalf("logger initialization error: %v", err)
 	}
@@ -98,8 +107,8 @@ func (a *app) loadLogger() {
 	a.log = zapLogger.Sugar()
 }
 
-func (a *app) loadServices() {
-	validatorImpl := internal.NewValidator(validator.New(), a.log)
+func (a *App) loadServices() {
+	validatorImpl := NewValidator(validator.New(), a.log)
 
 	var (
 		boardStorage   sv.BoardStorage
@@ -110,10 +119,10 @@ func (a *app) loadServices() {
 
 	switch a.dbConf.driver {
 	case "postgres":
-		boardStorage = pg.NewBoardDAO(a.db, a.log)
-		columnStorage = pg.NewColumnDAO(a.db, a.log)
-		taskStorage = pg.NewTaskDAO(a.db, a.log)
-		commentStorage = pg.NewCommentsDAO(a.db, a.log)
+		boardStorage = pg.NewBoardDAO(a.DB, a.log)
+		columnStorage = pg.NewColumnDAO(a.DB, a.log)
+		taskStorage = pg.NewTaskDAO(a.DB, a.log)
+		commentStorage = pg.NewCommentsDAO(a.DB, a.log)
 	default:
 		a.log.Fatalf("%s driver support is not implemented", a.dbConf.driver)
 	}
@@ -124,9 +133,9 @@ func (a *app) loadServices() {
 	a.commentService = sv.NewCommentService(validatorImpl, commentStorage)
 }
 
-func (a *app) setupDelivery() {
-	a.router = http.NewRouter()
-	subRouter := a.router.GetSubRouter("/api/v1")
+func (a *App) setupDelivery() {
+	a.Router = http.NewRouter()
+	subRouter := a.Router.GetSubRouter("/api/v1")
 
 	healthCheckHandler := rest.NewHealthCheck(a.log)
 	boardHandle := rest.NewBoardHandler(a.boardService, a.log, subRouter)
@@ -168,15 +177,15 @@ func (a *app) setupDelivery() {
 }
 
 // Run will start the web server on the given address
-func (a *app) run(addr string) {
-	http.NewServer(a.router, a.log).Start(addr)
+func (a *App) Run(addr string) {
+	http.NewServer(a.Router, a.log).Start(addr)
 }
 
 // SyncLogger flushes any buffered log entries. Applications should take care
 // to call Sync before exiting. Check for "sync /dev/stderr: invalid argument"
 // error is added for development log preset and should be removed as soon as
 // this is issue will be fixed in uber-go/zap
-func (a *app) syncLogger() {
+func (a *App) SyncLogger() {
 	if err := a.log.Sync(); err != nil {
 		if err.Error() == "sync /dev/stderr: invalid argument" {
 			a.log.Debug(err)
@@ -188,8 +197,8 @@ func (a *app) syncLogger() {
 
 // CloseDB closes the database and prevents new queries from starting.
 // Applications should take care to call CloseDB before exiting.
-func (a *app) closeDB() {
-	if err := a.db.Close(); err != nil {
+func (a *App) CloseDB() {
+	if err := a.DB.Close(); err != nil {
 		a.log.Errorf("DB close error: %v", err)
 	}
 }

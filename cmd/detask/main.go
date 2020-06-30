@@ -4,12 +4,15 @@
 // todo: consider using values instead of pointers
 package main
 
-import "os"
+import (
+	"github.com/dnozdrin/detask/internal/app"
+	"os"
+)
 
 func main() {
-	a := app{}
-	a.initialize(
-		newDBConfig(
+	a := app.App{}
+	a.Initialize(
+		app.NewDBConfig(
 			"postgres",
 			os.Getenv("DB_HOST"),
 			os.Getenv("DB_NAME"),
@@ -18,14 +21,14 @@ func main() {
 			os.Getenv("DB_PORT"),
 			os.Getenv("DB_MIGRATION_PATH"),
 		),
-		newAppConfig(
+		app.NewAppConfig(
 			os.Getenv("APP_CONTEXT"),
 			os.Getenv("APP_LOG_PATH"),
 		),
 	)
 
-	defer a.syncLogger()
-	defer a.closeDB()
+	defer a.SyncLogger()
+	defer a.CloseDB()
 
-	a.run(":" + os.Getenv("APP_PORT"))
+	a.Run(":" + os.Getenv("APP_PORT"))
 }

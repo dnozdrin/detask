@@ -1,25 +1,37 @@
-package main
+package app
 
-import "fmt"
+import (
+	"fmt"
+)
 
-type appConfig struct {
+const (
+	Prod = "production"
+	Test = "testing"
+	Dev = "development"
+)
+
+type Config struct {
 	context string
 	logPath string
 }
 
-func newAppConfig(context, logPath string) appConfig {
-	return appConfig{
+func NewAppConfig(context, logPath string) Config {
+	if context != Prod && context != Test {
+		context = Dev
+	}
+
+	return Config{
 		context: context,
 		logPath: logPath,
 	}
 }
 
-type dbConfig struct {
+type DbConfig struct {
 	driver, host, name, user, password, port, mgPath string
 }
 
-func newDBConfig(driver, host, name, user, password, port, mgPath string) dbConfig {
-	return dbConfig{
+func NewDBConfig(driver, host, name, user, password, port, mgPath string) DbConfig {
+	return DbConfig{
 		driver:   driver,
 		host:     host,
 		name:     name,
@@ -30,7 +42,7 @@ func newDBConfig(driver, host, name, user, password, port, mgPath string) dbConf
 	}
 }
 
-func (c dbConfig) toConnString() string {
+func (c DbConfig) toConnString() string {
 	return fmt.Sprintf(
 		"host=%s dbname=%s user=%s password=%s port=%s sslmode=disable",
 		c.host,
