@@ -1,40 +1,55 @@
-package app
+package main
 
 import (
 	"database/sql"
+	internal "github.com/dnozdrin/detask/internal/app"
 	"github.com/dnozdrin/detask/internal/delivery/http"
 	"github.com/dnozdrin/detask/internal/delivery/http/rest"
-	"github.com/dnozdrin/detask/internal/domain/services"
-	"github.com/dnozdrin/detask/internal/infrastructure/storage/postgres"
+	sv "github.com/dnozdrin/detask/internal/domain/services"
+	pg "github.com/dnozdrin/detask/internal/infrastructure/storage/postgres"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-migrate/migrate/v4"
 	mg "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/joho/godotenv/autoload"
+	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
-const prodContext = "production"
+const (
+	prod = "production"
+	test = "testing"
+)
 
 // App represents the main application handler
-type App struct {
+type app struct {
+	config appConfig
+	dbConf dbConfig
+
+	db *sql.DB
+
 	router *http.Router
+	log    *zap.SugaredLogger
 
-	dbConf DBConf
-	db     *sql.DB
-
-	log *zap.SugaredLogger
+	boardService   rest.BoardService
+	columnService  rest.ColumnService
+	taskService    rest.TaskService
+	commentService rest.CommentService
 }
 
 // Initialize loads all required for application run dependencies
-func (a *App) Initialize(config DBConf, context string) {
-	a.dbConf = config
-	a.loadLogger(context)
+func (a *app) initialize(dbConf dbConfig, config appConfig) {
+	a.config = config
+	a.dbConf = dbConf
+
+	a.loadLogger()
 	a.connectDB()
 	a.migrateDb()
-	a.initDelivery()
+	a.loadServices()
+	a.setupDelivery()
 }
 
-func (a *App) connectDB() {
+func (a *app) connectDB() {
 	var err error
 
 	a.db, err = sql.Open(a.dbConf.driver, a.dbConf.toConnString())
@@ -47,11 +62,11 @@ func (a *App) connectDB() {
 	}
 }
 
-func (a *App) migrateDb() {
+func (a *app) migrateDb() {
 	driver, err := mg.WithInstance(a.db, &mg.Config{})
-	m, err := migrate.NewWithDatabaseInstance("file://db/migrations", a.dbConf.driver, driver)
+	m, err := migrate.NewWithDatabaseInstance(a.dbConf.mgPath, a.dbConf.driver, driver)
 	if err != nil {
-		a.log.Fatal(err)
+		a.log.Fatalf("DB migration: failed: %v", err)
 	}
 	err = m.Up()
 	switch err {
@@ -64,13 +79,15 @@ func (a *App) migrateDb() {
 	}
 }
 
-func (a *App) loadLogger(context string) {
+func (a *app) loadLogger() {
 	var logInitFunc func(options ...zap.Option) (*zap.Logger, error)
-	switch context {
-		case prodContext:
-			logInitFunc = zap.NewProduction
-		default:
-			logInitFunc = zap.NewDevelopment
+	switch a.config.context {
+	case prod:
+		cfg := zap.NewProductionConfig()
+		cfg.OutputPaths = []string{a.config.logPath}
+		logInitFunc = cfg.Build
+	default:
+		logInitFunc = zap.NewDevelopment
 	}
 
 	zapLogger, err := logInitFunc()
@@ -81,22 +98,41 @@ func (a *App) loadLogger(context string) {
 	a.log = zapLogger.Sugar()
 }
 
-func (a *App) initDelivery() {
-	validatorImpl := NewValidator(validator.New(), a.log)
+func (a *app) loadServices() {
+	validatorImpl := internal.NewValidator(validator.New(), a.log)
 
-	boardService := services.NewBoardService(validatorImpl, postgres.NewBoardDAO(a.db, a.log))
-	columnService := services.NewColumnService(validatorImpl, postgres.NewColumnDAO(a.db, a.log))
-	taskService := services.NewTaskService(validatorImpl, postgres.NewTaskDAO(a.db, a.log))
-	commentService := services.NewCommentService(validatorImpl, postgres.NewCommentsDAO(a.db, a.log))
+	var (
+		boardStorage   sv.BoardStorage
+		columnStorage  sv.ColumnStorage
+		taskStorage    sv.TaskStorage
+		commentStorage sv.CommentStorage
+	)
 
+	switch a.dbConf.driver {
+	case "postgres":
+		boardStorage = pg.NewBoardDAO(a.db, a.log)
+		columnStorage = pg.NewColumnDAO(a.db, a.log)
+		taskStorage = pg.NewTaskDAO(a.db, a.log)
+		commentStorage = pg.NewCommentsDAO(a.db, a.log)
+	default:
+		a.log.Fatalf("%s driver support is not implemented", a.dbConf.driver)
+	}
+
+	a.boardService = sv.NewBoardService(validatorImpl, boardStorage)
+	a.columnService = sv.NewColumnService(validatorImpl, columnStorage)
+	a.taskService = sv.NewTaskService(validatorImpl, taskStorage)
+	a.commentService = sv.NewCommentService(validatorImpl, commentStorage)
+}
+
+func (a *app) setupDelivery() {
 	a.router = http.NewRouter()
 	subRouter := a.router.GetSubRouter("/api/v1")
 
 	healthCheckHandler := rest.NewHealthCheck(a.log)
-	boardHandle := rest.NewBoardHandler(boardService, a.log, subRouter)
-	columnHandler := rest.NewColumnHandler(columnService, a.log, subRouter)
-	taskHandler := rest.NewTaskHandler(taskService, a.log, subRouter)
-	commentHandler := rest.NewCommentHandler(commentService, a.log, subRouter)
+	boardHandle := rest.NewBoardHandler(a.boardService, a.log, subRouter)
+	columnHandler := rest.NewColumnHandler(a.columnService, a.log, subRouter)
+	taskHandler := rest.NewTaskHandler(a.taskService, a.log, subRouter)
+	commentHandler := rest.NewCommentHandler(a.commentService, a.log, subRouter)
 
 	var routes = http.Routes{
 		http.Route{Pattern: "/health", Method: "GET", Name: "health", HandlerFunc: healthCheckHandler.Status},
@@ -132,7 +168,7 @@ func (a *App) initDelivery() {
 }
 
 // Run will start the web server on the given address
-func (a *App) Run(addr string) {
+func (a *app) run(addr string) {
 	http.NewServer(a.router, a.log).Start(addr)
 }
 
@@ -140,16 +176,20 @@ func (a *App) Run(addr string) {
 // to call Sync before exiting. Check for "sync /dev/stderr: invalid argument"
 // error is added for development log preset and should be removed as soon as
 // this is issue will be fixed in uber-go/zap
-func (a *App) SyncLogger() {
-	if err := a.log.Sync(); err != nil && err.Error() != "sync /dev/stderr: invalid argument" {
-		a.log.Error(err)
+func (a *app) syncLogger() {
+	if err := a.log.Sync(); err != nil {
+		if err.Error() == "sync /dev/stderr: invalid argument" {
+			a.log.Debug(err)
+		} else {
+			a.log.Errorf("logger sync error: %v", err)
+		}
 	}
 }
 
 // CloseDB closes the database and prevents new queries from starting.
 // Applications should take care to call CloseDB before exiting.
-func (a *App) CloseDB() {
+func (a *app) closeDB() {
 	if err := a.db.Close(); err != nil {
-		a.log.Error(err)
+		a.log.Errorf("DB close error: %v", err)
 	}
 }
