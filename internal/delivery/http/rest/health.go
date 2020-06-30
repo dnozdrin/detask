@@ -22,5 +22,7 @@ func NewHealthCheck(logger log.Logger) *HealthCheck {
 // Status will response with status Ok
 func (hc HealthCheck) Status(w http.ResponseWriter, _ *http.Request) {
 	hc.log.Info("Health check is OK")
-	hc.resp.respondJSON(w, http.StatusOK, struct{ Status string `json:"status"`}{"OK"})
+	hc.resp.respondJSON(w, http.StatusOK, struct {
+		Status string `json:"status"`
+	}{"OK"})
 }

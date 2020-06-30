@@ -40,22 +40,22 @@ func TestMarshalJSON(t *testing.T) {
 	tests := []struct {
 		name   string
 		errors []Error
-		json []byte
+		json   []byte
 	}{
 		{
-			name: "no_errors",
+			name:   "no_errors",
 			errors: []Error{},
-			json: []byte("{\"error\":\"validation failed\",\"errors\":[]}"),
+			json:   []byte("{\"error\":\"validation failed\",\"errors\":[]}"),
 		},
 		{
-			name: "1_error",
+			name:   "1_error",
 			errors: []Error{{Field: "name", Message: "incorrect"}},
-			json: []byte("{\"error\":\"validation failed\",\"errors\":[{\"field\":\"name\",\"message\":\"incorrect\"}]}"),
+			json:   []byte("{\"error\":\"validation failed\",\"errors\":[{\"field\":\"name\",\"message\":\"incorrect\"}]}"),
 		},
 		{
-			name: "2_errors",
+			name:   "2_errors",
 			errors: []Error{{Field: "dummy", Message: "error"}, {Field: "tests", Message: "test"}},
-			json: []byte("{\"error\":\"validation failed\",\"errors\":[{\"field\":\"dummy\",\"message\":\"error\"},{\"field\":\"tests\",\"message\":\"test\"}]}"),
+			json:   []byte("{\"error\":\"validation failed\",\"errors\":[{\"field\":\"dummy\",\"message\":\"error\"},{\"field\":\"tests\",\"message\":\"test\"}]}"),
 		},
 	}
 	for _, test := range tests {

@@ -2,7 +2,7 @@ package rest
 
 import (
 	"encoding/json"
-	 "github.com/dnozdrin/detask/internal/app/log"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -14,13 +14,13 @@ import (
 )
 
 type CommentHandler struct {
-	service *services.CommentService
+	service CommentService
 	log     log.Logger
 	router  routeAware
 	resp    *responder
 }
 
-func NewCommentHandler(service *services.CommentService, logger log.Logger, router routeAware) *CommentHandler {
+func NewCommentHandler(service CommentService, logger log.Logger, router routeAware) *CommentHandler {
 	return &CommentHandler{
 		service: service,
 		log:     logger,

@@ -147,7 +147,7 @@ func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 		&column.BoardID,
 		&column.Position,
 	); err != nil {
-		if  err == sql.ErrNoRows {
+		if err == sql.ErrNoRows {
 			err = services.ErrRecordNotFound
 		} else if pgErr, ok := err.(*pq.Error); ok &&
 			pgErr.Constraint == "columns_position_board_key" &&

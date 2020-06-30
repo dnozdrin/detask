@@ -10,7 +10,7 @@ import (
 
 // Router is a router implementation wrapper
 type Router struct {
-	mux      *mux.Router
+	mux *mux.Router
 }
 
 // Routes is a slice of Routes

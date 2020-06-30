@@ -2,7 +2,7 @@ package rest
 
 import (
 	"encoding/json"
-	 "github.com/dnozdrin/detask/internal/app/log"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	v "github.com/dnozdrin/detask/internal/domain/validation"
@@ -13,13 +13,13 @@ import (
 )
 
 type ColumnHandler struct {
-	service *services.ColumnService
+	service ColumnService
 	log     log.Logger
 	router  routeAware
 	resp    *responder
 }
 
-func NewColumnHandler(service *services.ColumnService, logger log.Logger, router routeAware) *ColumnHandler {
+func NewColumnHandler(service ColumnService, logger log.Logger, router routeAware) *ColumnHandler {
 	return &ColumnHandler{
 		service: service,
 		log:     logger,

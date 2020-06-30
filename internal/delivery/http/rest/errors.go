@@ -1,7 +1,7 @@
 package rest
 
 const (
-	errInvalidJSON = "invalid JSON payload"
+	errInvalidJSON         = "invalid JSON payload"
 	errInvalidFilterParams = "invalid filter parameters"
-	errInternalServer = "internal server error"
+	errInternalServer      = "internal server error"
 )

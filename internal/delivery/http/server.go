@@ -16,7 +16,7 @@ type server struct {
 
 const (
 	writeTimeout = 15 * time.Second
-	readTimeout = 15 * time.Second
+	readTimeout  = 15 * time.Second
 )
 
 // NewServer will create a new instance of the web server
