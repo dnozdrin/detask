@@ -65,10 +65,6 @@ func (b *BoardDAO) SaveWithDefaultColumn(board *models.Board) (*models.Board, er
 			&board.Name,
 			&board.Description,
 		); err != nil {
-			if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-				err = services.ErrRecordAlreadyExist
-			}
-
 			return empty, err
 		}
 	}
