@@ -21,11 +21,10 @@ func TestMain(m *testing.M) {
 		),
 		app.NewAppConfig(
 			app.Test,
-			"/dev/null",
+			"stderr",
 		),
 	)
 
 	code := m.Run()
-	clearTables()
 	os.Exit(code)
 }

@@ -87,7 +87,7 @@ func (a *App) loadLogger() {
 		cfg.OutputPaths = []string{a.config.logPath}
 	case Test:
 		cfg = zap.Config{
-			Level:             zap.NewAtomicLevelAt(zap.InfoLevel),
+			Level:             zap.NewAtomicLevelAt(zap.FatalLevel),
 			Development:       true,
 			DisableStacktrace: true,
 			Encoding:          "console",

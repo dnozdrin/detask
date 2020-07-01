@@ -69,7 +69,7 @@ func (h BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h BoardHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
+		h.log.Errorf("error on parsing resource identifier: %v", err)
 		h.resp.respondError(w, http.StatusInternalServerError, "invalid resource identifier")
 		return
 	}
@@ -104,8 +104,8 @@ func (h BoardHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
-		h.resp.respondError(w, http.StatusBadRequest, "invalid resource identifier")
+		h.log.Errorf("error on parsing resource identifier: %v", err)
+		h.resp.respondError(w, http.StatusInternalServerError, "invalid resource identifier")
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.resp.respondJSON(w, http.StatusBadRequest, err)
 		} else {
 			h.log.Errorf("resource was not updated: %v", err)
-			h.resp.respond(w, http.StatusNoContent, "")
+			h.resp.respondError(w, http.StatusInternalServerError, "internal error")
 		}
 	}
 }
@@ -145,8 +145,8 @@ func (h BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h BoardHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
-		h.resp.respondError(w, http.StatusBadRequest, "invalid resource identifier")
+		h.log.Errorf("error on parsing resource identifier: %v", err)
+		h.resp.respondError(w, http.StatusInternalServerError, "invalid resource identifier")
 		return
 	}
 

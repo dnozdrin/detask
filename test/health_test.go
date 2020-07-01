@@ -7,7 +7,8 @@ import (
 )
 
 func TestHealthCheck(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/api/v1/health", nil)
+	req, err := http.NewRequest("GET", "/api/v1/health", nil)
+	must(t, err, "testing: failed to make a GET request to '/api/v1/health")
 	response := executeRequest(req)
 
 	assert.Equal(t, http.StatusOK, response.Code)
