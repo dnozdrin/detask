@@ -20,8 +20,8 @@ type Board struct {
 type Column struct {
 	Model
 	Name     string  `json:"name" validate:"max=255,min=1"`
-	BoardID  uint    `json:"board" validate:"required"`
-	Position float64 `json:"position" validate:"required"`
+	BoardID  uint    `json:"board" validate:"required,numeric"`
+	Position float64 `json:"position" validate:"required,numeric"`
 }
 
 // Task represents a task

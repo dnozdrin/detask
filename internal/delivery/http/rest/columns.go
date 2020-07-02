@@ -51,9 +51,14 @@ func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newColumn)
-	case errors.Is(err, services.ErrRecordAlreadyExist):
-		h.log.Errorf("given resource already exists", err)
-		h.resp.respondError(w, http.StatusBadRequest, "given resource already exists")
+	case errors.Is(err, services.ErrBoardRelationError):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, services.ErrRecordAlreadyExist),
+		errors.Is(err, services.ErrPositionDuplicate),
+		errors.Is(err, services.ErrNameDuplicate):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debug("resource was not created", err)
@@ -121,12 +126,16 @@ func (h ColumnHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	column.ID = ID
 	updatedBoard, err := h.service.Update(&column)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		h.resp.respondJSON(w, http.StatusOK, updatedBoard)
-	case services.ErrRecordNotFound:
+	case errors.Is(err, services.ErrRecordNotFound):
 		h.log.Debugf("resource was not found %d", ID)
 		h.resp.respondError(w, http.StatusNotFound, "resource was not found")
+	case errors.Is(err, services.ErrPositionDuplicate),
+		errors.Is(err, services.ErrNameDuplicate):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debugf("resource was not updated: %v", err)
@@ -146,11 +155,15 @@ func (h ColumnHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.service.Delete(ID); err != nil {
+	err = h.service.Delete(ID)
+	switch err {
+	case nil:
+		h.resp.respond(w, http.StatusNoContent, "")
+	case services.ErrLastColumn:
+		h.log.Debugf("resource was not found %d", ID)
+		h.resp.respondError(w, http.StatusBadRequest, "the last column on the board can not be deleted")
+	default:
 		h.log.Errorf("error while deleting a record: %v", err)
 		h.resp.respondError(w, http.StatusInternalServerError, errInternalServer)
-		return
 	}
-
-	h.resp.respond(w, http.StatusNoContent, "")
 }

@@ -3,14 +3,9 @@ package services
 import (
 	m "github.com/dnozdrin/detask/internal/domain/models"
 	v "github.com/dnozdrin/detask/internal/domain/validation"
-	"github.com/pkg/errors"
 )
 
 const DefaultColPos = 1000
-
-var (
-	ErrLastColumn = errors.New("the last column can not be deleted")
-)
 
 // ColumnStorage represents an interface for interaction with columns DAO
 type ColumnStorage interface {
