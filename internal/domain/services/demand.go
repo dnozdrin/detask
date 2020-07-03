@@ -13,6 +13,24 @@ type Demand interface {
 
 type constraints map[string]uint
 
+var allowedColumnFilter = map[string]struct{}{
+	"board": {},
+}
+
+// ColumnDemand is a constraints container for tasks
+type ColumnDemand constraints
+
+// Add will add allowed filter constraints to the ColumnDemand or will
+// return an error if the field / value constraint is not in allowlist
+func (cd ColumnDemand) Add(field string, value uint) error {
+	if _, ok := allowedColumnFilter[field]; !ok {
+		return ErrFilterNotAllowed
+	}
+
+	cd[field] = value
+	return nil
+}
+
 var allowedTaskFilter = map[string]struct{}{
 	"board":  {},
 	"column": {},

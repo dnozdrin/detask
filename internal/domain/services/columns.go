@@ -15,7 +15,7 @@ type ColumnStorage interface {
 	FindOneById(uint) (*m.Column, error)
 	// Find should return a slice of columns pointers sorted by position, that meet the
 	// provided demand
-	Find() ([]*m.Column, error)
+	Find(ColumnDemand) ([]*m.Column, error)
 	// Update should update all column fields by the provided data
 	Update(*m.Column) (*m.Column, error)
 	// Delete should set current deletion time to a column with the provided ID
@@ -49,8 +49,8 @@ func (c *ColumnService) Create(column *m.Column) (*m.Column, error) {
 
 // Find will return all not deleted columns and an error in case
 // it occurred while fetching records from the storage
-func (c *ColumnService) Find() ([]*m.Column, error) {
-	return c.columnStorage.Find()
+func (c *ColumnService) Find(demand ColumnDemand) ([]*m.Column, error) {
+	return c.columnStorage.Find(demand)
 }
 
 // FindOneById will return a pointer to the column requested by id and

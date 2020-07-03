@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/dnozdrin/detask/internal/app/log"
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
@@ -99,14 +100,15 @@ func (c ColumnDAO) FindOneById(ID uint) (*models.Column, error) {
 }
 
 // Find will return all found columns or an error
-func (c ColumnDAO) Find() ([]*models.Column, error) {
+func (c ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) {
+	const querySelect = "id, created_at, updated_at, name, board, position"
 	columns := make([]*models.Column, 0)
+	where := "1=1"
+	if taskID, ok := demand["board"]; ok {
+		where = where + fmt.Sprintf(" and board = %d", taskID)
+	}
 
-	rows, err := c.db.Query(`
-		select id, created_at, updated_at, name, board, position
-		from columns
-		order by position
-		`)
+	rows, err := c.db.Query(fmt.Sprintf(`select %s from columns where %s order by position;`, querySelect, where))
 	if err != nil {
 		return nil, err
 	}

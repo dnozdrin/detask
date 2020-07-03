@@ -22,7 +22,7 @@ type BoardService interface {
 
 type ColumnService interface {
 	Create(board *m.Column) (*m.Column, error)
-	Find() ([]*m.Column, error)
+	Find(demand services.ColumnDemand) ([]*m.Column, error)
 	FindOneById(ID uint) (*m.Column, error)
 	Update(board *m.Column) (*m.Column, error)
 	Delete(ID uint) error

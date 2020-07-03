@@ -105,7 +105,7 @@ func TestColumnService_Find(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Find").Return(columnsIn, nil)
 		columnService := &ColumnService{columnStorage: columnStorage}
-		columnsOut, err := columnService.Find()
+		columnsOut, err := columnService.Find(make(ColumnDemand))
 		assert.Nil(t, err)
 		assert.Equal(t, columnsIn, columnsOut)
 	})
@@ -114,7 +114,7 @@ func TestColumnService_Find(t *testing.T) {
 		columnStorage := new(MockedColumnStorage)
 		columnStorage.On("Find", mock.Anything).Return([]*m.Column{}, errors.New(""))
 		columnService := &ColumnService{columnStorage: columnStorage}
-		columnOut, err := columnService.Find()
+		columnOut, err := columnService.Find(make(ColumnDemand))
 		assert.Error(t, err)
 		assert.Empty(t, columnOut)
 	})

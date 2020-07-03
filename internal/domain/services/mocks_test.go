@@ -62,8 +62,8 @@ func (cs *MockedColumnStorage) FindOneById(ID uint) (*m.Column, error) {
 	return returnValues.Get(0).(*m.Column), returnValues.Error(1)
 }
 
-func (cs *MockedColumnStorage) Find() ([]*m.Column, error) {
-	returnValues := cs.Called()
+func (cs *MockedColumnStorage) Find(demand ColumnDemand) ([]*m.Column, error) {
+	returnValues := cs.Called(demand)
 	return returnValues.Get(0).([]*m.Column), returnValues.Error(1)
 }
 

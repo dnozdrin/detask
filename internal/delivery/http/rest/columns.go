@@ -93,7 +93,15 @@ func (h ColumnHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h ColumnHandler) Get(w http.ResponseWriter, r *http.Request) {
-	boards, err := h.service.Find()
+	demand := make(services.ColumnDemand)
+	err := parseFilter(r, &demand)
+	if err != nil {
+		h.log.Debug(err)
+		h.resp.respondError(w, http.StatusBadRequest, "invalid filter params")
+		return
+	}
+
+	boards, err := h.service.Find(demand)
 	if err != nil {
 		h.log.Errorf("error while getting records: %v", err)
 		h.resp.respondError(w, http.StatusInternalServerError, errInternalServer)
