@@ -7,6 +7,7 @@ import (
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	v "github.com/dnozdrin/detask/internal/domain/validation"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -46,14 +47,17 @@ func (h BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newBoard, err := h.service.Create(&board)
-	switch err{
-	case nil:
+	switch {
+	case err == nil:
 		url, err := h.router.GetURL("get_board", "id", strconv.Itoa(int(newBoard.ID)))
 		if err != nil {
 			h.log.Errorf("unable to build URL: %v", err)
 		}
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newBoard)
+	case errors.Is(err, services.ErrRecordAlreadyExist):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debug("resource was not created", err)

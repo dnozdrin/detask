@@ -29,7 +29,7 @@ func NewColumnDAO(db *sql.DB, log log.Logger) *ColumnDAO {
 func (c ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 	empty := &models.Column{}
 	if column.ID > 0 {
-		return empty, errors.Errorf("can not create a new record with an existing given ID")
+		return empty, services.ErrRecordAlreadyExist
 	}
 
 	stmt, err := c.db.Prepare(`
@@ -51,7 +51,16 @@ func (c ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 		&column.Position,
 	); err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-			err = services.ErrRecordAlreadyExist
+			switch pgErr.Constraint {
+			case "columns_name_board_key":
+				err = services.ErrNameDuplicate
+			case "columns_position_board_key":
+				err = services.ErrPositionDuplicate
+			case "columns_board_fkey":
+				err = services.ErrBoardRelation
+			default:
+				c.log.Error(err)
+			}
 		} else {
 			c.log.Error(err)
 		}
@@ -131,15 +140,15 @@ func (c ColumnDAO) Find() ([]*models.Column, error) {
 func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 	stmt, err := c.db.Prepare(`
 		update columns
-		set updated_at = $1, name = $2
-		where id = $3
+		set updated_at = $1, name = $2, position = $3
+		where id = $4
 		returning id, created_at, updated_at, name, board, position
 	`)
 	if err != nil {
 		return nil, err
 	}
 	defer deferred(c.log, stmt.Close)
-	if err = stmt.QueryRow(time.Now(), column.Name, column.ID).Scan(
+	if err = stmt.QueryRow(time.Now(), column.Name, column.Position, column.ID).Scan(
 		&column.ID,
 		&column.CreatedAt,
 		&column.UpdatedAt,
@@ -149,10 +158,17 @@ func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 	); err != nil {
 		if err == sql.ErrNoRows {
 			err = services.ErrRecordNotFound
-		} else if pgErr, ok := err.(*pq.Error); ok &&
-			pgErr.Constraint == "columns_position_board_key" &&
-			pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-			err = services.ErrPositionDuplicate
+		} else if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
+			switch pgErr.Constraint {
+			case "columns_name_board_key":
+				err = services.ErrNameDuplicate
+			case "columns_position_board_key":
+				err = services.ErrPositionDuplicate
+			default:
+				c.log.Error(err)
+			}
+		} else {
+			c.log.Error(err)
 		}
 
 		return nil, err
@@ -190,7 +206,6 @@ func (c ColumnDAO) Delete(ID uint) error {
 		if num <= 1 {
 			return services.ErrLastColumn
 		}
-
 	}
 
 	{

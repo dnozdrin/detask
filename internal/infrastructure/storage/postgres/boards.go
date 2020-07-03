@@ -4,7 +4,7 @@
 // todo: return wrapped predefined errors for different actions
 // todo: consider adding more diverse errors on integrity_constraint_violation error
 // todo: improve work with column position change
-// todo: review transaction isolation levels
+// todo: review transaction isolation levels. Maybe serializable for updates?
 package postgres
 
 import (
@@ -15,8 +15,6 @@ import (
 	"github.com/dnozdrin/detask/internal/domain/services"
 
 	"github.com/dnozdrin/detask/internal/domain/models"
-	"github.com/lib/pq"
-	"github.com/pkg/errors"
 )
 
 // BoardDAO is a data access object for boards
@@ -38,7 +36,7 @@ func NewBoardDAO(db *sql.DB, log log.Logger) *BoardDAO {
 func (b *BoardDAO) SaveWithDefaultColumn(board *models.Board) (*models.Board, error) {
 	empty := &models.Board{}
 	if board.ID > 0 {
-		return empty, errors.Errorf("can not create a new record with an existing given ID: %d", board.ID)
+		return empty, services.ErrRecordAlreadyExist
 	}
 
 	tx, err := b.db.Begin()
@@ -70,23 +68,12 @@ func (b *BoardDAO) SaveWithDefaultColumn(board *models.Board) (*models.Board, er
 	}
 
 	{
-		if res, err := tx.Exec(
+		if _, err := tx.Exec(
 			`insert into columns (name, board, position) values ('Default', $1, $2);`,
 			board.ID,
 			services.DefaultColPos,
 		); err != nil {
-			if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-				err = services.ErrRecordAlreadyExist
-
-				return empty, err
-			}
-			if res != nil {
-				if num, err := res.RowsAffected(); err != nil || num != 1 {
-					b.log.Error("default column insertion error: err: %v, affected records: %d", err, num)
-					return empty, err
-				}
-			}
-
+			b.log.Error("error on default column add: %v", err)
 			return empty, err
 		}
 	}

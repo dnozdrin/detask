@@ -49,7 +49,7 @@ func countItems(t *testing.T, table string) (num int) {
 
 func must(t *testing.T, err error, message string, arg ...interface{}) {
 	if err != nil {
-		t.Fatalf(message, arg...)
+		t.Fatalf(message+" | error: "+err.Error(), arg...)
 	}
 }
 
@@ -79,16 +79,15 @@ func seedBoards(t *testing.T) []boardStub {
 }
 
 type columnStub struct {
-	name string
-	board uint
-	position float64
-	timestamp         time.Time
+	name      string
+	board     uint
+	position  float64
+	timestamp time.Time
 }
-
 
 func seedColumns(t *testing.T) []columnStub {
 	var (
-		err error
+		err     error
 		boardID uint
 
 		timestamp = time.Unix(1589932800, 0)
@@ -107,11 +106,11 @@ func seedColumns(t *testing.T) []columnStub {
 		{"test name 2", boardID, 2000, timestamp},
 		{"test name 3", boardID, 3000, timestamp},
 	}
-	for _, b := range columns {
+	for _, c := range columns {
 		_, err = a.DB.Exec(`
 			insert into columns (name, board, position, created_at, updated_at)
 			values ($1, $2, $3, $4, $4);`,
-			b.name, b.board, b.position, b.timestamp,
+			c.name, c.board, c.position, c.timestamp,
 		)
 		must(t, err, "testing: failed to seed columns")
 	}
@@ -168,14 +167,14 @@ func seedTasks(t *testing.T) []taskStub {
 }
 
 type commentStub struct {
-	text string
-	task            uint
-	timestamp         time.Time
+	text      string
+	task      uint
+	timestamp time.Time
 }
 
 func seedComments(t *testing.T) []commentStub {
 	var (
-		err               error
+		err                       error
 		boardID, columnID, taskID uint
 
 		timestamp = time.Unix(1589932800, 0)

@@ -23,7 +23,7 @@ func TestBoardAdd_OK(t *testing.T) {
 		board map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "description": "%s"}`, name, description))
+		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "description":"%s"}`, name, description))
 	)
 
 	req, err := http.NewRequest("POST", "/api/v1/board", bytes.NewBuffer(jsonStr))
@@ -55,7 +55,7 @@ func TestBoardAdd_OK(t *testing.T) {
 		&bID, &bName, &bDescription, &bCreatedAt, &bUpdatedAt,
 		&cID, &cName, &cPosition, &cCreatedAt, &cUpdatedAt,
 	)
-	must(t, err, "testing: making database query")
+	must(t, err, "testing: failed to make database query on board add test")
 
 	assert.Equal(uint(1), bID)
 	assert.Equal(name, bName)

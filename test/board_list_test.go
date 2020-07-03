@@ -5,13 +5,7 @@ import (
 	testify "github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-	"time"
 )
-
-type boardStub struct {
-	name, description string
-	timestamp         time.Time
-}
 
 func TestBoardList_OK(t *testing.T) {
 	clearTable(t, "boards")

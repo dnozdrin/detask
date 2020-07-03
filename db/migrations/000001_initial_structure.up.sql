@@ -6,7 +6,7 @@ create table boards
     updated_at  timestamp not null default now(),
 
     name        varchar(500),
-    description varchar(1000)
+    description varchar(1000) not null default ''
 );
 
 create table columns

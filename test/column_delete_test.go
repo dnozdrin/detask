@@ -16,14 +16,14 @@ func TestColumnDelete(t *testing.T) {
 		stubs    = seedColumns(t)
 		itemsNum = len(stubs)
 		ID       = 1
-		body map[string]interface{}
+		body     map[string]interface{}
 	)
 
 	t.Run("delete_ok", func(t *testing.T) {
 		for ; ID <= len(stubs)-1; ID++ {
 			itemsNum--
 			req, err := http.NewRequest("DELETE", fmt.Sprintf("/api/v1/columns/%d", ID), nil)
-			must(t, err, "testing: failed to make a DELETE request to '/api/v1/columns'")
+			must(t, err, "testing: failed to make a DELETE request to '/api/v1/columns/%d'", ID)
 			response := executeRequest(req)
 
 			assert.Equal(http.StatusNoContent, response.Code)
@@ -33,7 +33,7 @@ func TestColumnDelete(t *testing.T) {
 	})
 	t.Run("delete_last_column", func(t *testing.T) {
 		req, err := http.NewRequest("DELETE", fmt.Sprintf("/api/v1/columns/%d", ID), nil)
-		must(t, err, "testing: failed to make a DELETE request to '/api/v1/columns'")
+		must(t, err, "testing: failed to make a DELETE request to '/api/v1/columns/%d'", ID)
 
 		response := executeRequest(req)
 		err = json.Unmarshal(response.Body.Bytes(), &body)

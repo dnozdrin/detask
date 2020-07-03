@@ -21,7 +21,7 @@ func TestBoardDelete(t *testing.T) {
 	for ID := 1; ID <= len(stubs); ID++ {
 		itemsNum--
 		req, err := http.NewRequest("DELETE", fmt.Sprintf("/api/v1/boards/%d", ID), nil)
-		must(t, err, "testing: failed to make a DELETE request to '/api/v1/boards'")
+		must(t, err, "testing: failed to make a DELETE request to '/api/v1/boards/%d'", ID)
 
 		response := executeRequest(req)
 		num = countItems(t, "boards")

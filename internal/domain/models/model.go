@@ -12,14 +12,14 @@ type Model struct {
 // Board represents a board (project)
 type Board struct {
 	Model
-	Name        string `json:"name" validate:"max=500,min=1"`
+	Name        string `json:"name" validate:"required,max=500,min=1"`
 	Description string `json:"description" validate:"max=1000"`
 }
 
 // Column represents a column (status)
 type Column struct {
 	Model
-	Name     string  `json:"name" validate:"max=255,min=1"`
+	Name     string  `json:"name" validate:"required,max=255,min=1"`
 	BoardID  uint    `json:"board" validate:"required,numeric"`
 	Position float64 `json:"position" validate:"required,numeric"`
 }

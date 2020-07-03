@@ -51,7 +51,7 @@ func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newColumn)
-	case errors.Is(err, services.ErrBoardRelationError):
+	case errors.Is(err, services.ErrBoardRelation):
 		h.log.Warnf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrRecordAlreadyExist),

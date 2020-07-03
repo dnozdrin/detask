@@ -135,7 +135,6 @@ func TestColumnUpdate_RecordNotFound(t *testing.T) {
 	assert.Equal("resource was not found", body["error"])
 }
 
-
 func TestColumnUpdate_PositionDuplicate(t *testing.T) {
 	clearTables(t, "boards", "columns")
 
@@ -147,7 +146,6 @@ func TestColumnUpdate_PositionDuplicate(t *testing.T) {
 	var (
 		err  error
 		body map[string]interface{}
-
 
 		assert  = testify.New(t)
 		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "board":%d, "position":%f}`, name, board, position))

@@ -14,4 +14,5 @@ var (
 	ErrBoardRelation  = errors.New("a board with the provided ID was not found")
 	ErrColumnRelation = errors.New("a column with the provided ID was not found")
 	ErrTaskRelation   = errors.New("a task with the provided ID was not found")
+	ErrLastColumn     = errors.New("the last column can not be deleted")
 )

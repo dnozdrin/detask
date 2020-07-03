@@ -37,7 +37,7 @@ func TestColumnGet_OK(t *testing.T) {
 func TestColumnGet_NotFound(t *testing.T) {
 	clearTables(t, "columns")
 	var (
-		err   error
+		err  error
 		body map[string]interface{}
 
 		assert = testify.New(t)

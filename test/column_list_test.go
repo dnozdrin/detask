@@ -10,7 +10,7 @@ import (
 func TestColumnList_OK(t *testing.T) {
 	clearTables(t, "boards", "columns")
 	var (
-		err    error
+		err     error
 		columns []map[string]interface{}
 
 		assert = testify.New(t)
@@ -36,7 +36,7 @@ func TestColumnList_OK(t *testing.T) {
 func TestColumnList_NoItems(t *testing.T) {
 	clearTable(t, "columns")
 	var (
-		err    error
+		err     error
 		columns []map[string]interface{}
 
 		assert = testify.New(t)
