@@ -27,10 +27,10 @@ type Column struct {
 // Task represents a task
 type Task struct {
 	Model
-	Name        string  `json:"name,omitempty" validate:"max=500,min=1"`
-	Description string  `json:"description,omitempty" validate:"max=5000"`
-	ColumnID    uint    `json:"column" validate:"required"`
-	Position    float64 `json:"position" validate:"required"`
+	Name        string  `json:"name" validate:"required,max=500,min=1"`
+	Description string  `json:"description" validate:"max=5000"`
+	ColumnID    uint    `json:"column" validate:"required,numeric"`
+	Position    float64 `json:"position" validate:"required,numeric"`
 }
 
 // Comment represents a comment to a task

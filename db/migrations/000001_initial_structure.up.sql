@@ -31,7 +31,7 @@ create table tasks
     updated_at  timestamp not null default now(),
 
     name        varchar(500),
-    description varchar(5000),
+    description varchar(5000) not null default '',
     "column"    int       not null,
     position    serial    not null,
 

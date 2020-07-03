@@ -10,7 +10,6 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/dnozdrin/detask/internal/domain/models"
-	"github.com/pkg/errors"
 )
 
 // TaskDAO is a data access object for boards
@@ -32,7 +31,7 @@ func NewTaskDAO(db *sql.DB, log log.Logger) *TaskDAO {
 func (t TaskDAO) Save(task *models.Task) (*models.Task, error) {
 	empty := &models.Task{}
 	if task.ID > 0 {
-		return empty, errors.Errorf("can not create a new record with an existing given ID")
+		return empty, services.ErrRecordAlreadyExist
 	}
 
 	stmt, err := t.db.Prepare(`
@@ -55,7 +54,14 @@ func (t TaskDAO) Save(task *models.Task) (*models.Task, error) {
 		&task.Position,
 	); err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-			err = services.ErrRecordAlreadyExist
+			switch pgErr.Constraint {
+			case "tasks_column_fkey":
+				err = services.ErrColumnRelation
+			case "tasks_position_column_key":
+				err = services.ErrPositionDuplicate
+			default:
+				t.log.Error(err)
+			}
 		} else {
 			t.log.Error(err)
 		}
@@ -136,15 +142,15 @@ func (t TaskDAO) Find(demand services.TaskDemand) ([]*models.Task, error) {
 func (t TaskDAO) Update(task *models.Task) (*models.Task, error) {
 	stmt, err := t.db.Prepare(`
 		update tasks
-		set updated_at = $1, name = $2, description = $3, position = $4
-		where id = $5
+		set updated_at = $1, name = $2, description = $3, position = $4, "column" = $5
+		where id = $6
 		returning id, created_at, updated_at, name, description, "column", position
 	`)
 	if err != nil {
 		return nil, err
 	}
 	defer deferred(t.log, stmt.Close)
-	if err = stmt.QueryRow(time.Now(), task.Name, task.Description, task.Position, task.ID).Scan(
+	if err = stmt.QueryRow(time.Now(), task.Name, task.Description, task.Position, task.ColumnID, task.ID).Scan(
 		&task.ID,
 		&task.CreatedAt,
 		&task.UpdatedAt,
@@ -155,10 +161,17 @@ func (t TaskDAO) Update(task *models.Task) (*models.Task, error) {
 	); err != nil {
 		if err == sql.ErrNoRows {
 			err = services.ErrRecordNotFound
-		} else if pgErr, ok := err.(*pq.Error); ok &&
-			pgErr.Constraint == "tasks_position_column_key" &&
-			pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-			err = services.ErrPositionDuplicate
+		} else if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
+			switch pgErr.Constraint {
+			case "tasks_column_fkey":
+				err = services.ErrColumnRelation
+			case "tasks_position_column_key":
+				err = services.ErrPositionDuplicate
+			default:
+				t.log.Error(err)
+			}
+		} else {
+			t.log.Error(err)
 		}
 
 		return nil, err

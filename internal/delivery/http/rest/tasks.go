@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -53,9 +52,13 @@ func (h TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newTask)
-	case errors.Is(err, services.ErrRecordAlreadyExist):
-		h.log.Errorf("given resource already exists", err)
-		h.resp.respondError(w, http.StatusBadRequest, "given resource already exists")
+	case errors.Is(err, services.ErrColumnRelation):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, services.ErrRecordAlreadyExist),
+		errors.Is(err, services.ErrPositionDuplicate):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debug("resource was not created", err)
@@ -130,15 +133,18 @@ func (h TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	task.ID = ID
 	updatedTask, err := h.service.Update(&task)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		h.resp.respondJSON(w, http.StatusOK, updatedTask)
-	case services.ErrRecordNotFound:
+	case errors.Is(err, services.ErrRecordNotFound):
 		h.log.Debugf("resource was not found %d", ID)
 		h.resp.respondError(w, http.StatusNotFound, "resource was not found")
-	case services.ErrPositionDuplicate:
-		h.log.Debugf("attempt to duplicate position %d", ID)
-		h.resp.respondError(w, http.StatusConflict, fmt.Sprintf("position %v has already been taken", task.Position))
+	case errors.Is(err, services.ErrColumnRelation):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, services.ErrPositionDuplicate):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debugf("resource was not updated: %v", err)

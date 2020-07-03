@@ -118,3 +118,51 @@ func seedColumns(t *testing.T) []columnStub {
 
 	return columns
 }
+
+type taskStub struct {
+	name, description string
+	column            uint
+	position          float64
+	timestamp         time.Time
+}
+
+func seedTasks(t *testing.T) []taskStub {
+	var (
+		err               error
+		boardID, columnID uint
+
+		timestamp = time.Unix(1589932800, 0)
+	)
+
+	err = a.DB.QueryRow(`
+			insert into boards (name, description, created_at, updated_at)
+			values ($1, $2, $3, $3)
+			returning id;`,
+		"test name 1", "test description 1", timestamp,
+	).Scan(&boardID)
+	must(t, err, "testing: failed to seed board for tasks")
+
+	err = a.DB.QueryRow(`
+			insert into columns (name, board, position, created_at, updated_at)
+			values ($1, $2, $3, $4, $4)
+			returning id;`,
+		"test name 1", boardID, 1000, timestamp,
+	).Scan(&columnID)
+	must(t, err, "testing: failed to seed column for tasks")
+
+	tasks := []taskStub{
+		{"test name 1", "test description 1", columnID, 1000, timestamp},
+		{"test name 2", "test description 1", columnID, 2000, timestamp},
+		{"test name 3", "test description 1", columnID, 3000, timestamp},
+	}
+	for _, task := range tasks {
+		_, err = a.DB.Exec(`
+			insert into tasks (name, description, "column", position, created_at, updated_at)
+			values ($1, $2, $3, $4, $5, $5);`,
+			task.name, task.description, task.column, task.position, task.timestamp,
+		)
+		must(t, err, "testing: failed to seed tasks")
+	}
+
+	return tasks
+}
