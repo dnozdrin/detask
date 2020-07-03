@@ -52,9 +52,12 @@ func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newComment)
+	case errors.Is(err, services.ErrTaskRelation):
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrRecordAlreadyExist):
-		h.log.Errorf("given resource already exists", err)
-		h.resp.respondError(w, http.StatusBadRequest, "given resource already exists")
+		h.log.Warnf("constraints error: %v", err)
+		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
 			h.log.Debug("resource was not created", err)
@@ -94,6 +97,7 @@ func (h CommentHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.log.Debug(err)
 		h.resp.respondError(w, http.StatusBadRequest, "invalid filter params")
+		return
 	}
 
 	boards, err := h.service.Find(demand)
@@ -129,10 +133,10 @@ func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	comment.ID = ID
 	updatedBoard, err := h.service.Update(&comment)
-	switch err {
-	case nil:
+	switch  {
+	case err == nil:
 		h.resp.respondJSON(w, http.StatusOK, updatedBoard)
-	case services.ErrRecordNotFound:
+	case errors.Is(err, services.ErrRecordNotFound):
 		h.log.Debugf("resource was not found %d", ID)
 		h.resp.respondError(w, http.StatusNotFound, "resource was not found")
 	default:

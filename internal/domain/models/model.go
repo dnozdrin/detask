@@ -36,6 +36,6 @@ type Task struct {
 // Comment represents a comment to a task
 type Comment struct {
 	Model
-	Text   string `json:"text" validate:"max=5000,min=1"`
-	TaskID uint   `json:"task" validate:"required"`
+	Text   string `json:"text" validate:"required,max=5000,min=1"`
+	TaskID uint   `json:"task" validate:"required,numeric"`
 }

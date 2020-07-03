@@ -166,3 +166,58 @@ func seedTasks(t *testing.T) []taskStub {
 
 	return tasks
 }
+
+type commentStub struct {
+	text string
+	task            uint
+	timestamp         time.Time
+}
+
+func seedComments(t *testing.T) []commentStub {
+	var (
+		err               error
+		boardID, columnID, taskID uint
+
+		timestamp = time.Unix(1589932800, 0)
+	)
+
+	err = a.DB.QueryRow(`
+			insert into boards (name, description, created_at, updated_at)
+			values ($1, $2, $3, $3)
+			returning id;`,
+		"test name 1", "test description 1", timestamp,
+	).Scan(&boardID)
+	must(t, err, "testing: failed to seed a board for comments")
+
+	err = a.DB.QueryRow(`
+			insert into columns (name, board, position, created_at, updated_at)
+			values ($1, $2, $3, $4, $4)
+			returning id;`,
+		"test name 1", boardID, 1000, timestamp,
+	).Scan(&columnID)
+	must(t, err, "testing: failed to seed a column for comments")
+
+	err = a.DB.QueryRow(`
+			insert into tasks (name, description, "column", position, created_at, updated_at)
+			values ('test name 1', 'test description 1', $1, 1000, $2, $2)
+			returning id;`,
+		columnID, timestamp,
+	).Scan(&taskID)
+	must(t, err, "testing: failed to seed a task for comments")
+
+	comments := []commentStub{
+		{"test text 1", taskID, timestamp},
+		{"test text 2", taskID, timestamp},
+		{"test text 3", taskID, timestamp},
+	}
+	for _, c := range comments {
+		_, err = a.DB.Exec(`
+			insert into comments (text, task, created_at, updated_at)
+			values ($1, $2, $3, $3);`,
+			c.text, c.task, c.timestamp,
+		)
+		must(t, err, "testing: failed to seed comments")
+	}
+
+	return comments
+}

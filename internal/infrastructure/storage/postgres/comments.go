@@ -9,7 +9,6 @@ import (
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
-	"github.com/pkg/errors"
 )
 
 // CommentsDAO is a data access object for comments
@@ -31,7 +30,7 @@ func NewCommentsDAO(db *sql.DB, log log.Logger) *CommentsDAO {
 func (c CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
 	empty := &models.Comment{}
 	if comment.ID > 0 {
-		return empty, errors.Errorf("can not create a new record with an existing given ID")
+		return empty, services.ErrRecordAlreadyExist
 	}
 
 	stmt, err := c.db.Prepare(`
@@ -52,7 +51,12 @@ func (c CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
 		&comment.TaskID,
 	); err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
-			err = services.ErrRecordAlreadyExist
+			switch pgErr.Constraint {
+			case "comments_task_fkey":
+				err = services.ErrTaskRelation
+			default:
+				c.log.Error(err)
+			}
 		} else {
 			c.log.Error(err)
 		}
@@ -88,7 +92,7 @@ func (c CommentsDAO) Find(demand services.CommentDemand) ([]*models.Comment, err
 	const querySelect = "id, created_at, updated_at, text, task"
 	where := "1=1"
 	if taskID, ok := demand["task"]; ok {
-		where = where + fmt.Sprintf(" and t.column = %d", taskID)
+		where = where + fmt.Sprintf(" and t.task = %d", taskID)
 	}
 
 	rows, err := c.db.Query(
@@ -142,7 +146,10 @@ func (c CommentsDAO) Update(comment *models.Comment) (*models.Comment, error) {
 	); err != nil {
 		if err == sql.ErrNoRows {
 			err = services.ErrRecordNotFound
+		} else {
+			c.log.Error(err)
 		}
+
 		return nil, err
 	}
 
