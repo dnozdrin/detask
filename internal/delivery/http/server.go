@@ -32,7 +32,7 @@ func NewServer(handler http.Handler, log log.Logger) *server {
 }
 
 // Start will start the web server
-func (s *server) Start(addr string) {
+func (s *server) Start(addr string) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, os.Kill)
 	go func() {
@@ -44,15 +44,15 @@ func (s *server) Start(addr string) {
 	s.http.Addr = addr
 
 	if err := s.http.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		s.log.Error("http: server: listen and server")
-		s.log.Error(err)
+		return err
 	}
+
+	return nil
 }
 
 func (s *server) shutdown() {
 	err := s.http.Shutdown(context.Background())
 	if err != nil {
-		s.log.Error("http: server: shutdown")
-		s.log.Error(err)
+		s.log.Errorf("http: server: shutdown: %v", err)
 	}
 }

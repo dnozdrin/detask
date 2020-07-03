@@ -1,21 +1,20 @@
 package app
 
-import (
-	"fmt"
-)
+import "fmt"
 
 const (
 	Prod = "production"
 	Test = "testing"
-	Dev = "development"
+	Dev  = "development"
 )
 
+// Config represents the application configuration
 type Config struct {
 	context string
 	logPath string
 }
 
-func NewAppConfig(context, logPath string) Config {
+func NewConfig(context, logPath string) Config {
 	if context != Prod && context != Test {
 		context = Dev
 	}

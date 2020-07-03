@@ -1,3 +1,5 @@
+//+build !test
+
 // todo: review logging format
 // todo: review app-wide logging policy
 // todo: review errors handling, consider wrapping and unwrapping
@@ -21,14 +23,11 @@ func main() {
 			os.Getenv("DB_PORT"),
 			os.Getenv("DB_MIGRATION_PATH"),
 		),
-		app.NewAppConfig(
+		app.NewConfig(
 			os.Getenv("APP_CONTEXT"),
 			os.Getenv("APP_LOG_PATH"),
 		),
 	)
-
-	defer a.SyncLogger()
-	defer a.CloseDB()
 
 	a.Run(":" + os.Getenv("APP_PORT"))
 }

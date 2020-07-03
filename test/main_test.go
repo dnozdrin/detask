@@ -1,3 +1,6 @@
+// todo: consider replacing maps with concrete models
+// todo: consider optimizing seeding
+// todo: cover with test boundary cases: validation, etc
 package test
 
 import (
@@ -19,12 +22,11 @@ func TestMain(m *testing.M) {
 			os.Getenv("DB_PORT"),
 			os.Getenv("DB_MIGRATION_PATH"),
 		),
-		app.NewAppConfig(
+		app.NewConfig(
 			app.Test,
 			"stderr",
 		),
 	)
-
 	code := m.Run()
 	os.Exit(code)
 }

@@ -81,7 +81,6 @@ func (a *App) loadLogger() {
 	}()
 	var cfg zap.Config
 	switch a.config.context {
-
 	case Prod:
 		cfg = zap.NewProductionConfig()
 		cfg.OutputPaths = []string{a.config.logPath}
@@ -101,7 +100,7 @@ func (a *App) loadLogger() {
 
 	zapLogger, err := cfg.Build()
 	if err != nil {
-		a.log.Fatalf("logger initialization error: %v", err)
+		a.log.Fatalf("logger initialization failed: %v", err)
 	}
 
 	a.log = zapLogger.Sugar()
@@ -178,14 +177,19 @@ func (a *App) setupDelivery() {
 
 // Run will start the web server on the given address
 func (a *App) Run(addr string) {
-	http.NewServer(a.Router, a.log).Start(addr)
+	if err := http.NewServer(a.Router, a.log).Start(addr); err != nil {
+		a.log.Fatalf("http: server: listen and server: %v", err)
+	}
+
+	a.syncLogger()
+	a.closeDB()
 }
 
-// SyncLogger flushes any buffered log entries. Applications should take care
+// syncLogger flushes any buffered log entries. Applications should take care
 // to call Sync before exiting. Check for "sync /dev/stderr: invalid argument"
 // error is added for development log preset and should be removed as soon as
 // this is issue will be fixed in uber-go/zap
-func (a *App) SyncLogger() {
+func (a *App) syncLogger() {
 	if err := a.log.Sync(); err != nil {
 		if err.Error() == "sync /dev/stderr: invalid argument" {
 			a.log.Debug(err)
@@ -195,9 +199,9 @@ func (a *App) SyncLogger() {
 	}
 }
 
-// CloseDB closes the database and prevents new queries from starting.
+// closeDB closes the database and prevents new queries from starting.
 // Applications should take care to call CloseDB before exiting.
-func (a *App) CloseDB() {
+func (a *App) closeDB() {
 	if err := a.DB.Close(); err != nil {
 		a.log.Errorf("DB close error: %v", err)
 	}

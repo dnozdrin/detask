@@ -133,7 +133,7 @@ func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	comment.ID = ID
 	updatedBoard, err := h.service.Update(&comment)
-	switch  {
+	switch {
 	case err == nil:
 		h.resp.respondJSON(w, http.StatusOK, updatedBoard)
 	case errors.Is(err, services.ErrRecordNotFound):
