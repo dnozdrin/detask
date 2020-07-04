@@ -1,3 +1,5 @@
+// +build unit
+
 package app
 
 import "github.com/stretchr/testify/mock"
