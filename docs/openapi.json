@@ -555,20 +555,22 @@
           "description": "Column object that needs to be updated",
           "content": {
             "application/json": {
-              "schema": [
-                {
-                  "$ref": "#/components/schemas/Column"
-                },
-                {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "name",
-                    "board",
-                    "position"
-                  ]
-                }
-              ]
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Column"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "board",
+                      "position"
+                    ]
+                  }
+                ]
+              }
             }
           },
           "required": true
@@ -681,19 +683,21 @@
           "description": "Task object that needs to be added",
           "content": {
             "application/json": {
-              "schema": [
-                {
-                  "$ref": "#/components/schemas/Task"
-                },
-                {
-                  "type": "object",
-                  "required": [
-                    "name",
-                    "column",
-                    "position"
-                  ]
-                }
-              ]
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "column",
+                      "position"
+                    ]
+                  }
+                ]
+              }
             }
           },
           "required": true
@@ -875,20 +879,22 @@
           "description": "Task object that needs to be updated",
           "content": {
             "application/json": {
-              "schema": [
-                {
-                  "$ref": "#/components/schemas/Task"
-                },
-                {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "name",
-                    "column",
-                    "position"
-                  ]
-                }
-              ]
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "column",
+                      "position"
+                    ]
+                  }
+                ]
+              }
             }
           },
           "required": true
@@ -1001,18 +1007,20 @@
           "description": "Comment object that needs to be added",
           "content": {
             "application/json": {
-              "schema": [
-                {
-                  "$ref": "#/components/schemas/Comment"
-                },
-                {
-                  "type": "object",
-                  "required": [
-                    "text",
-                    "task"
-                  ]
-                }
-              ]
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Comment"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "text",
+                      "task"
+                    ]
+                  }
+                ]
+              }
             }
           },
           "required": true
@@ -1186,19 +1194,21 @@
           "description": "Comment object that needs to be updated",
           "content": {
             "application/json": {
-              "schema": [
-                {
-                  "$ref": "#/components/schemas/Comment"
-                },
-                {
-                  "type": "object",
-                  "required": [
-                    "id",
-                    "text",
-                    "task"
-                  ]
-                }
-              ]
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Comment"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "text",
+                      "task"
+                    ]
+                  }
+                ]
+              }
             }
           },
           "required": true
