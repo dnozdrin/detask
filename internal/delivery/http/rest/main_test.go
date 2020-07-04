@@ -1,12 +1,39 @@
-package test
+// todo: consider replacing maps with concrete models
+// todo: consider optimizing seeding
+// todo: cover with test boundary cases: validation, etc
+package rest_test
 
 import (
 	"fmt"
+	"github.com/dnozdrin/detask/internal/app"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
+
+var a app.App
+
+func TestMain(m *testing.M) {
+	a.Initialize(
+		app.NewDBConfig(
+			"postgres",
+			os.Getenv("DB_HOST"),
+			os.Getenv("DB_NAME"),
+			os.Getenv("DB_USER"),
+			os.Getenv("DB_PASS"),
+			os.Getenv("DB_PORT"),
+			os.Getenv("DB_MIGRATION_PATH"),
+		),
+		app.NewConfig(
+			app.Test,
+			"stderr",
+		),
+	)
+	code := m.Run()
+	os.Exit(code)
+}
 
 const maxTestsRunExpected = time.Second * 30
 
@@ -62,9 +89,9 @@ func seedBoards(t *testing.T) []boardStub {
 	var err error
 	timestamp := time.Unix(1589932800, 0)
 	boards := []boardStub{
-		{"test name 1", "test description 1", timestamp},
-		{"test name 2", "test description 2", timestamp},
-		{"test name 3", "test description 3", timestamp},
+		{"rest_test name 1", "rest_test description 1", timestamp},
+		{"rest_test name 2", "rest_test description 2", timestamp},
+		{"rest_test name 3", "rest_test description 3", timestamp},
 	}
 	for _, b := range boards {
 		_, err = a.DB.Exec(`
@@ -97,14 +124,14 @@ func seedColumns(t *testing.T) []columnStub {
 			insert into boards (name, description, created_at, updated_at)
 			values ($1, $2, $3, $3)
 			returning id;`,
-		"test name 1", "test description 1", timestamp,
+		"rest_test name 1", "rest_test description 1", timestamp,
 	).Scan(&boardID)
 	must(t, err, "testing: failed to seed board for columns")
 
 	columns := []columnStub{
-		{"test name 1", boardID, 1000, timestamp},
-		{"test name 2", boardID, 2000, timestamp},
-		{"test name 3", boardID, 3000, timestamp},
+		{"rest_test name 1", boardID, 1000, timestamp},
+		{"rest_test name 2", boardID, 2000, timestamp},
+		{"rest_test name 3", boardID, 3000, timestamp},
 	}
 	for _, c := range columns {
 		_, err = a.DB.Exec(`
@@ -137,7 +164,7 @@ func seedTasks(t *testing.T) []taskStub {
 			insert into boards (name, description, created_at, updated_at)
 			values ($1, $2, $3, $3)
 			returning id;`,
-		"test name 1", "test description 1", timestamp,
+		"rest_test name 1", "rest_test description 1", timestamp,
 	).Scan(&boardID)
 	must(t, err, "testing: failed to seed board for tasks")
 
@@ -145,14 +172,14 @@ func seedTasks(t *testing.T) []taskStub {
 			insert into columns (name, board, position, created_at, updated_at)
 			values ($1, $2, $3, $4, $4)
 			returning id;`,
-		"test name 1", boardID, 1000, timestamp,
+		"rest_test name 1", boardID, 1000, timestamp,
 	).Scan(&columnID)
 	must(t, err, "testing: failed to seed column for tasks")
 
 	tasks := []taskStub{
-		{"test name 1", "test description 1", columnID, 1000, timestamp},
-		{"test name 2", "test description 1", columnID, 2000, timestamp},
-		{"test name 3", "test description 1", columnID, 3000, timestamp},
+		{"rest_test name 1", "rest_test description 1", columnID, 1000, timestamp},
+		{"rest_test name 2", "rest_test description 1", columnID, 2000, timestamp},
+		{"rest_test name 3", "rest_test description 1", columnID, 3000, timestamp},
 	}
 	for _, task := range tasks {
 		_, err = a.DB.Exec(`
@@ -184,7 +211,7 @@ func seedComments(t *testing.T) []commentStub {
 			insert into boards (name, description, created_at, updated_at)
 			values ($1, $2, $3, $3)
 			returning id;`,
-		"test name 1", "test description 1", timestamp,
+		"rest_test name 1", "rest_test description 1", timestamp,
 	).Scan(&boardID)
 	must(t, err, "testing: failed to seed a board for comments")
 
@@ -192,22 +219,22 @@ func seedComments(t *testing.T) []commentStub {
 			insert into columns (name, board, position, created_at, updated_at)
 			values ($1, $2, $3, $4, $4)
 			returning id;`,
-		"test name 1", boardID, 1000, timestamp,
+		"rest_test name 1", boardID, 1000, timestamp,
 	).Scan(&columnID)
 	must(t, err, "testing: failed to seed a column for comments")
 
 	err = a.DB.QueryRow(`
 			insert into tasks (name, description, "column", position, created_at, updated_at)
-			values ('test name 1', 'test description 1', $1, 1000, $2, $2)
+			values ('rest_test name 1', 'rest_test description 1', $1, 1000, $2, $2)
 			returning id;`,
 		columnID, timestamp,
 	).Scan(&taskID)
 	must(t, err, "testing: failed to seed a task for comments")
 
 	comments := []commentStub{
-		{"test text 1", taskID, timestamp},
-		{"test text 2", taskID, timestamp},
-		{"test text 3", taskID, timestamp},
+		{"rest_test text 1", taskID, timestamp},
+		{"rest_test text 2", taskID, timestamp},
+		{"rest_test text 3", taskID, timestamp},
 	}
 	for _, c := range comments {
 		_, err = a.DB.Exec(`
