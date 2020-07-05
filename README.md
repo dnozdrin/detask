@@ -15,7 +15,7 @@
 [![Codecov](https://codecov.io/gh/dnozdrin/detask/branch/master/graph/badge.svg)](https://codecov.io/gh/dnozdrin/detask)
 [![Coreportcard](https://goreportcard.com/badge/github.com/dnozdrin/detask)](https://goreportcard.com/report/github.com/dnozdrin/detask)
 [![License](https://img.shields.io/github/license/dnozdrin/detask)](/LICENSE)
-[![Release](https://img.shields.io/github/release/dnozdrin/detask.svg)](https://github.com/dnozdrin/piglatin/releases/latest)
+[![Release](https://img.shields.io/github/release/dnozdrin/detask.svg)](https://github.com/dnozdrin/detask/releases/latest)
 
 ## Getting Started
 
