@@ -9,16 +9,17 @@ import (
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 // CommentsDAO is a data access object for comments
 type CommentsDAO struct {
-	db  *sql.DB
+	db  db
 	log log.Logger
 }
 
 // NewCommentsDAO represents a CommentsDAO constructor
-func NewCommentsDAO(db *sql.DB, log log.Logger) *CommentsDAO {
+func NewCommentsDAO(db db, log log.Logger) *CommentsDAO {
 	return &CommentsDAO{
 		db:  db,
 		log: log,
@@ -27,22 +28,26 @@ func NewCommentsDAO(db *sql.DB, log log.Logger) *CommentsDAO {
 
 // Save will store the provided comment into the database and return
 // a pointer to the saved entity. Returns nil and an error in case of error.
-func (c CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
-	empty := &models.Comment{}
+func (dao CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
+	if comment == nil {
+		dao.log.Error("comments storage: nil pointer given")
+		return nil, errors.New("nil comment pointer given")
+	}
 	if comment.ID > 0 {
-		return empty, services.ErrRecordAlreadyExist
+		dao.log.Warnf("comments storage: %v, ID: %d", services.ErrRecordAlreadyExist, comment.ID)
+		return nil, services.ErrRecordAlreadyExist
 	}
 
-	stmt, err := c.db.Prepare(`
+	stmt, err := dao.db.Prepare(`
 		insert into comments (text, task)
 		values ($1, $2)
 		returning id, created_at, updated_at, text, task;`,
 	)
 	if err != nil {
-		c.log.Error(err)
-		return empty, err
+		dao.log.Errorf("comments storage: failed to prepare statement: %v", err)
+		return nil, err
 	}
-	defer deferred(c.log, stmt.Close)
+	defer deferred(dao.log, stmt.Close)
 	if err = stmt.QueryRow(comment.Text, comment.TaskID).Scan(
 		&comment.ID,
 		&comment.CreatedAt,
@@ -55,13 +60,13 @@ func (c CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
 			case "comments_task_fkey":
 				err = services.ErrTaskRelation
 			default:
-				c.log.Error(err)
+				dao.log.Errorf("comments storage: integrity constraint violation: %v", err)
 			}
 		} else {
-			c.log.Error(err)
+			dao.log.Errorf("comments storage: error while querying a row: %v", err)
 		}
 
-		return empty, err
+		return nil, err
 	}
 
 	return comment, nil
@@ -69,39 +74,41 @@ func (c CommentsDAO) Save(comment *models.Comment) (*models.Comment, error) {
 
 // FindOneById will return a pointer to a comment with the provided ID or
 // a pointer to an empty comment and an error
-func (c CommentsDAO) FindOneById(ID uint) (*models.Comment, error) {
+func (dao CommentsDAO) FindOneById(ID uint) (*models.Comment, error) {
 	comment := &models.Comment{}
-	err := c.db.QueryRow(`
+	err := dao.db.QueryRow(`
 		select id, created_at, updated_at, text, task
 		from comments
 		where id = $1
 		`, ID).
 		Scan(&comment.ID, &comment.CreatedAt, &comment.UpdatedAt, &comment.Text, &comment.TaskID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			err = services.ErrRecordNotFound
+		if err != sql.ErrNoRows {
+			dao.log.Errorf("comments storage: error while querying a row: %v", err)
+			return nil, err
 		}
-		return nil, err
+		return nil, services.ErrRecordNotFound
 	}
 
 	return comment, err
 }
 
 // Find will return all found comments that meet the provided demand or an error
-func (c CommentsDAO) Find(demand services.CommentDemand) ([]*models.Comment, error) {
+func (dao CommentsDAO) Find(demand services.CommentDemand) ([]*models.Comment, error) {
 	const querySelect = "id, created_at, updated_at, text, task"
 	where := "1=1"
 	if taskID, ok := demand["task"]; ok {
 		where = where + fmt.Sprintf(" and t.task = %d", taskID)
 	}
 
-	rows, err := c.db.Query(
+	rows, err := dao.db.Query(
 		fmt.Sprintf(`select %s from comments t where %s order by created_at desc;`, querySelect, where),
 	)
 	if err != nil {
+		dao.log.Errorf("comments storage: error while querying rows: %v", err)
 		return nil, err
 	}
-	defer deferred(c.log, rows.Close)
+	defer deferred(dao.log, rows.Close)
 
 	comments := make([]*models.Comment, 0)
 	for rows.Next() {
@@ -113,12 +120,14 @@ func (c CommentsDAO) Find(demand services.CommentDemand) ([]*models.Comment, err
 			&comment.Text,
 			&comment.TaskID,
 		); err != nil {
+			dao.log.Errorf("comments storage: error while querying next row: %v", err)
 			return nil, err
 		}
 		comments = append(comments, comment)
 	}
 
 	if err := rows.Err(); err != nil {
+		dao.log.Errorf("comments storage: error while querying rows: %v", err)
 		return nil, err
 	}
 
@@ -126,17 +135,22 @@ func (c CommentsDAO) Find(demand services.CommentDemand) ([]*models.Comment, err
 }
 
 // Update will update text of the persistent representation of the comment
-func (c CommentsDAO) Update(comment *models.Comment) (*models.Comment, error) {
-	stmt, err := c.db.Prepare(`
+func (dao CommentsDAO) Update(comment *models.Comment) (*models.Comment, error) {
+	if comment == nil {
+		dao.log.Error("comments storage: nil pointer given")
+		return nil, errors.New("nil comment pointer given")
+	}
+	stmt, err := dao.db.Prepare(`
 		update comments
 		set updated_at = $1, text = $2
 		where id = $3
 		returning id, created_at, updated_at, text, task
 	`)
 	if err != nil {
+		dao.log.Errorf("comments storage: failed to prepare statement: %v", err)
 		return nil, err
 	}
-	defer deferred(c.log, stmt.Close)
+	defer deferred(dao.log, stmt.Close)
 	if err = stmt.QueryRow(time.Now(), comment.Text, comment.ID).Scan(
 		&comment.ID,
 		&comment.CreatedAt,
@@ -144,21 +158,24 @@ func (c CommentsDAO) Update(comment *models.Comment) (*models.Comment, error) {
 		&comment.Text,
 		&comment.TaskID,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			err = services.ErrRecordNotFound
-		} else {
-			c.log.Error(err)
+		if err != sql.ErrNoRows {
+			dao.log.Errorf("comments storage: error while updating a row: %v", err)
+			return nil, err
 		}
 
-		return nil, err
+		return nil, services.ErrRecordNotFound
 	}
 
 	return comment, nil
 }
 
 // Delete will delete the record in the database
-func (c CommentsDAO) Delete(ID uint) error {
-	_, err := c.db.Exec("delete from comments where id = $1", ID)
+func (dao CommentsDAO) Delete(ID uint) error {
+	_, err := dao.db.Exec("delete from comments where id = $1", ID)
+	if err != nil {
+		dao.log.Errorf("comments storage: error while deleting a row: %v", err)
+		return err
+	}
 
 	return err
 }

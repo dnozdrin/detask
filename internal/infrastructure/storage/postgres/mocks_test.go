@@ -1,11 +1,10 @@
 // +build unit
 
-package rest
+package postgres
 
 import (
+	"database/sql"
 	"github.com/stretchr/testify/mock"
-	"net/http"
-	"net/url"
 )
 
 type LoggerMock struct {
@@ -52,16 +51,31 @@ func (l *LoggerMock) Debug(args ...interface{}) {
 	l.Called(args)
 }
 
-type RouteAwareMock struct {
+type DBMock struct {
 	mock.Mock
 }
 
-func (raw *RouteAwareMock) GetURL(name string, params ...string) (*url.URL, error) {
-	returnValues := raw.Called(name, params)
-	return returnValues.Get(0).(*url.URL), returnValues.Error(1)
+func (db *DBMock) Begin() (*sql.Tx, error) {
+	returnValues := db.Called()
+	return returnValues.Get(0).(*sql.Tx), returnValues.Error(1)
 }
 
-func (raw *RouteAwareMock) GetIDVar(r *http.Request) (uint, error) {
-	returnValues := raw.Called(r)
-	return returnValues.Get(0).(uint), returnValues.Error(1)
+func (db *DBMock) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	returnValues := db.Called(query, args)
+	return returnValues.Get(0).(*sql.Rows), returnValues.Error(1)
+}
+
+func (db *DBMock) QueryRow(query string, args ...interface{}) *sql.Row {
+	returnValues := db.Called(query, args)
+	return returnValues.Get(0).(*sql.Row)
+}
+
+func (db *DBMock) Exec(query string, args ...interface{}) (sql.Result, error) {
+	returnValues := db.Called(query, args)
+	return returnValues.Get(0).(sql.Result), returnValues.Error(1)
+}
+
+func (db *DBMock) Prepare(query string) (*sql.Stmt, error) {
+	returnValues := db.Called(query)
+	return returnValues.Get(0).(*sql.Stmt), returnValues.Error(1)
 }

@@ -49,10 +49,10 @@ jobs:
           command: go mod vendor
       - run:
           name: "Run unit tests"
-          command: go test -coverprofile=coverage.txt -covermode=atomic -tags=unit ./...
+          command: go test -coverprofile=coverage.txt -covermode=atomic -tags=test,unit ./...
       - run:
           name: "Run end-to-end tests"
-          command: go test -coverpkg=./... -coverprofile=coverage.http.txt -tags=integrational ./test
+          command: go test -coverpkg=./... -coverprofile=coverage.http.txt -tags=test,integrational ./test
       - run:
           name: "Merge tests coverage stats"
           command: tail -n +2 coverage.http.txt >> coverage.txt

@@ -13,12 +13,12 @@ import (
 
 // ColumnDAO is a data access object for columns
 type ColumnDAO struct {
-	db  *sql.DB
+	db  db
 	log log.Logger
 }
 
 // NewColumnDAO represents a ColumnDAO constructor
-func NewColumnDAO(db *sql.DB, log log.Logger) *ColumnDAO {
+func NewColumnDAO(db db, log log.Logger) *ColumnDAO {
 	return &ColumnDAO{
 		db:  db,
 		log: log,
@@ -27,22 +27,26 @@ func NewColumnDAO(db *sql.DB, log log.Logger) *ColumnDAO {
 
 // Save will store the provided column into the database and return
 // a pointer to the saved entity. Returns nil and an error in case of error.
-func (c ColumnDAO) Save(column *models.Column) (*models.Column, error) {
-	empty := &models.Column{}
+func (dao ColumnDAO) Save(column *models.Column) (*models.Column, error) {
+	if column == nil {
+		dao.log.Error("columns storage: nil pointer given")
+		return nil, errors.New("nil column pointer given")
+	}
 	if column.ID > 0 {
-		return empty, services.ErrRecordAlreadyExist
+		dao.log.Warnf("columns storage: %v, ID: %d", services.ErrRecordAlreadyExist, column.ID)
+		return nil, services.ErrRecordAlreadyExist
 	}
 
-	stmt, err := c.db.Prepare(`
+	stmt, err := dao.db.Prepare(`
 		insert into columns (name, board, position)
 		values ($1, $2, $3)
 		returning id, created_at, updated_at, name, board, position;`,
 	)
 	if err != nil {
-		c.log.Error(err)
-		return empty, err
+		dao.log.Errorf("columns storage: failed to prepare statement: %v", err)
+		return nil, err
 	}
-	defer deferred(c.log, stmt.Close)
+	defer deferred(dao.log, stmt.Close)
 	if err = stmt.QueryRow(column.Name, column.BoardID, column.Position).Scan(
 		&column.ID,
 		&column.CreatedAt,
@@ -60,13 +64,13 @@ func (c ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 			case "columns_board_fkey":
 				err = services.ErrBoardRelation
 			default:
-				c.log.Error(err)
+				dao.log.Errorf("columns storage: integrity constraint violation: %v", err)
 			}
 		} else {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while querying a row: %v", err)
 		}
 
-		return empty, err
+		return nil, err
 	}
 
 	return column, nil
@@ -74,9 +78,9 @@ func (c ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 
 // FindOneById will return a pointer to a column with the provided ID or
 // a pointer to an empty column and an error
-func (c ColumnDAO) FindOneById(ID uint) (*models.Column, error) {
+func (dao ColumnDAO) FindOneById(ID uint) (*models.Column, error) {
 	column := &models.Column{}
-	err := c.db.QueryRow(`
+	err := dao.db.QueryRow(`
 		select id, created_at, updated_at, name, board, position
 		from columns
 		where id = $1
@@ -90,17 +94,19 @@ func (c ColumnDAO) FindOneById(ID uint) (*models.Column, error) {
 			&column.Position,
 		)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			err = services.ErrRecordNotFound
+		if err != sql.ErrNoRows {
+			dao.log.Errorf("columns storage: error while querying a row: %v", err)
+			return nil, err
 		}
-		return nil, err
+
+		return nil, services.ErrRecordNotFound
 	}
 
 	return column, nil
 }
 
 // Find will return all found columns or an error
-func (c ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) {
+func (dao ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) {
 	const querySelect = "id, created_at, updated_at, name, board, position"
 	columns := make([]*models.Column, 0)
 	where := "1=1"
@@ -108,11 +114,12 @@ func (c ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) 
 		where = where + fmt.Sprintf(" and board = %d", taskID)
 	}
 
-	rows, err := c.db.Query(fmt.Sprintf(`select %s from columns where %s order by position;`, querySelect, where))
+	rows, err := dao.db.Query(fmt.Sprintf(`select %s from columns where %s order by position;`, querySelect, where))
 	if err != nil {
+		dao.log.Errorf("columns storage: error while querying rows: %v", err)
 		return nil, err
 	}
-	defer deferred(c.log, rows.Close)
+	defer deferred(dao.log, rows.Close)
 
 	for rows.Next() {
 		column := &models.Column{}
@@ -124,12 +131,14 @@ func (c ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) 
 			&column.BoardID,
 			&column.Position,
 		); err != nil {
+			dao.log.Errorf("columns storage: error while querying next row: %v", err)
 			return nil, err
 		}
 		columns = append(columns, column)
 	}
 
 	if err := rows.Err(); err != nil {
+		dao.log.Errorf("columns storage: rows query error: %v", err)
 		return nil, err
 	}
 
@@ -139,17 +148,22 @@ func (c ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) 
 // Update will update the name of the persistent representation
 // of the column. Returns pointer to a updated column or to a empty column
 // entity and an error
-func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
-	stmt, err := c.db.Prepare(`
+func (dao ColumnDAO) Update(column *models.Column) (*models.Column, error) {
+	if column == nil {
+		dao.log.Error("columns storage: nil pointer given")
+		return nil, errors.New("nil column pointer given")
+	}
+	stmt, err := dao.db.Prepare(`
 		update columns
 		set updated_at = $1, name = $2, position = $3
 		where id = $4
 		returning id, created_at, updated_at, name, board, position
 	`)
 	if err != nil {
+		dao.log.Errorf("columns storage: failed to prepare statement: %v", err)
 		return nil, err
 	}
-	defer deferred(c.log, stmt.Close)
+	defer deferred(dao.log, stmt.Close)
 	if err = stmt.QueryRow(time.Now(), column.Name, column.Position, column.ID).Scan(
 		&column.ID,
 		&column.CreatedAt,
@@ -167,10 +181,10 @@ func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 			case "columns_position_board_key":
 				err = services.ErrPositionDuplicate
 			default:
-				c.log.Error(err)
+				dao.log.Errorf("columns storage: integrity constraint violation: %v", err)
 			}
 		} else {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while updating a row: %v", err)
 		}
 
 		return nil, err
@@ -182,10 +196,10 @@ func (c ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 // Delete will the column with the provided ID. The last column cannot be deleted.
 // When a column is deleted, its tasks are moved to the column to the left of the
 // current or to the right of the current if the curring is the leftmost
-func (c ColumnDAO) Delete(ID uint) error {
-	tx, err := c.db.Begin()
+func (dao ColumnDAO) Delete(ID uint) error {
+	tx, err := dao.db.Begin()
 	if err != nil {
-		c.log.Error(err)
+		dao.log.Errorf("columns storage: failed to start transaction: %v", err)
 		return err
 	}
 
@@ -201,7 +215,7 @@ func (c ColumnDAO) Delete(ID uint) error {
 		where c1.id = $1
 		group by c1.board, c1.position`, ID).Scan(&num, &boardID, &position)
 		if err != nil {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while querying a row: %v", err)
 			return err
 		}
 
@@ -224,7 +238,7 @@ func (c ColumnDAO) Delete(ID uint) error {
 			from "columns" ) sub
 		where id = $1`, ID).Scan(&prev, &next)
 		if err != nil {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while querying prev and next records: %v", err)
 			return err
 		}
 
@@ -233,14 +247,14 @@ func (c ColumnDAO) Delete(ID uint) error {
 		} else if next.Valid && next.Int64 > 0 {
 			target = uint(next.Int64)
 		} else {
-			err = errors.Errorf("target column for tasks transfer not found, column ID: %d", ID)
-			c.log.Error(err)
+			err = errors.Errorf("columns storage: target column for tasks transfer not found, column ID: %d", ID)
+			dao.log.Error(err)
 			return err
 		}
 
 		_, err = tx.Exec(`update tasks set "column" = $1 where "column" = $2`, target, ID)
 		if err != nil {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while moving tasks from column ID: %d: %v", ID, err)
 			return err
 		}
 	}
@@ -248,19 +262,19 @@ func (c ColumnDAO) Delete(ID uint) error {
 	{
 		res, err := tx.Exec(`delete from "columns" where id = $1`, ID)
 		if err != nil {
-			c.log.Error(err)
+			dao.log.Errorf("columns storage: error while deleting a column ID: %d: %v", ID, err)
 			return err
 		}
 
 		rowsNum, err := res.RowsAffected()
 		if err != nil {
-			c.log.Error(err)
+			dao.log.Error(err)
 			return err
 		}
 
 		if rowsNum != 1 {
 			err = errors.Errorf("tried to delete %d rows, want 1", rowsNum)
-			c.log.Error(err)
+			dao.log.Error(err)
 			return err
 		}
 	}

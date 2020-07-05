@@ -1,4 +1,3 @@
-// todo: add error wrappers
 package services
 
 import (

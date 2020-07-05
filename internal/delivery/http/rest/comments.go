@@ -72,7 +72,7 @@ func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h CommentHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
+		h.log.Errorf("error on parsing resource identifier: %v", err)
 		h.resp.respondError(w, http.StatusInternalServerError, "invalid resource identifier")
 		return
 	}
@@ -113,7 +113,7 @@ func (h CommentHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
+		h.log.Errorf("error on parsing resource identifier: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, "invalid resource identifier")
 		return
 	}
@@ -153,7 +153,7 @@ func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h CommentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
-		h.log.Warnf("error on parsing resource identifier: %v", err)
+		h.log.Errorf("error on parsing resource identifier: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, "invalid resource identifier")
 		return
 	}

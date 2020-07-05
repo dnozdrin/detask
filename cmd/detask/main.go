@@ -1,9 +1,5 @@
 //+build !test
 
-// todo: review logging format
-// todo: review app-wide logging policy
-// todo: review errors handling, consider wrapping and unwrapping
-// todo: consider using values instead of pointers
 package main
 
 import (

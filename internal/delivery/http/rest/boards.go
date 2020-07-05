@@ -1,4 +1,3 @@
-// todo: add request ID to logging
 package rest
 
 import (

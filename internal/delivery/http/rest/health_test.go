@@ -3,6 +3,7 @@
 package rest
 
 import (
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
@@ -18,12 +19,6 @@ func TestHealthCheck_Status(t *testing.T) {
 	handler := http.HandlerFunc(healthCheck.Status)
 	handler.ServeHTTP(recorder, &http.Request{})
 
-	if recorder.Code != http.StatusOK {
-		t.Errorf("bad response code, wanted %v got %v",
-			recorder.Code, http.StatusOK)
-	}
-	expectedBody := `{"status":"OK"}`
-	if recorder.Body.String() != expectedBody {
-		t.Errorf("bad response body, wanted %v got %v", recorder.Body, expectedBody)
-	}
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, `{"status":"OK"}`, recorder.Body.String())
 }

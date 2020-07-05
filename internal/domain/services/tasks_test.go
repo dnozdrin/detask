@@ -3,7 +3,7 @@
 package services
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"testing"
 
