@@ -13,3 +13,4 @@ vendor/
 # Project specific paths
 /.env
 /log/
+/bin/detask

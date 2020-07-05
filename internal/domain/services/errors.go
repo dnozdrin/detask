@@ -10,8 +10,8 @@ var (
 
 	// ErrRecordAlreadyExist is used for cases when there is an attempt to create a record
 	// which already exists (ID constraints violation).
-
 	ErrRecordAlreadyExist = errors.New("record already exists")
+
 	// ErrNameDuplicate is used for cases when there is an attempt to create or modify a record
 	// and the new name violates unique constraints.
 	ErrNameDuplicate = errors.New("a record with this name already exists")
