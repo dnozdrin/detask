@@ -11,7 +11,7 @@ type HealthCheck struct {
 	resp *responder
 }
 
-// HealthCheck constructor
+// NewHealthCheck is a HealthCheck constructor
 func NewHealthCheck(logger log.Logger) *HealthCheck {
 	return &HealthCheck{
 		log:  logger,

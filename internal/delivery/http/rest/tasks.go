@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TaskHandler provides a Rest API http handlers for work with tasks
 type TaskHandler struct {
 	service TaskService
 	log     log.Logger
@@ -20,6 +21,7 @@ type TaskHandler struct {
 	resp    *responder
 }
 
+// NewTaskHandler is TaskHandler constructor
 func NewTaskHandler(service TaskService, logger log.Logger, router routeAware) *TaskHandler {
 	return &TaskHandler{
 		service: service,
@@ -29,6 +31,7 @@ func NewTaskHandler(service TaskService, logger log.Logger, router routeAware) *
 	}
 }
 
+// Create will call creation of the provided resource
 func (h TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var task models.Task
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -70,6 +73,7 @@ func (h TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetOneById will respond with the requested resource or an error
 func (h TaskHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -91,6 +95,7 @@ func (h TaskHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, task)
 }
 
+// Get will respond with the requested resources or an error
 func (h TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	demand := make(services.TaskDemand)
 	err := parseFilter(r, &demand)
@@ -110,6 +115,7 @@ func (h TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, tasks)
 }
 
+// Update will trigger update of the provided resource
 func (h TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -156,6 +162,7 @@ func (h TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Delete will trigger deletion of the provided resource
 func (h TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {

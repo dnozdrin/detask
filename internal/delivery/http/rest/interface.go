@@ -12,6 +12,7 @@ type routeAware interface {
 	GetIDVar(r *http.Request) (uint, error)
 }
 
+// BoardService provides an interface for work board service layer
 type BoardService interface {
 	Create(board *m.Board) (*m.Board, error)
 	Find() ([]*m.Board, error)
@@ -20,6 +21,7 @@ type BoardService interface {
 	Delete(ID uint) error
 }
 
+// ColumnService provides an interface for work column service layer
 type ColumnService interface {
 	Create(board *m.Column) (*m.Column, error)
 	Find(demand services.ColumnDemand) ([]*m.Column, error)
@@ -28,6 +30,7 @@ type ColumnService interface {
 	Delete(ID uint) error
 }
 
+// TaskService provides an interface for work task service layer
 type TaskService interface {
 	Create(board *m.Task) (*m.Task, error)
 	Find(demand services.TaskDemand) ([]*m.Task, error)
@@ -36,6 +39,7 @@ type TaskService interface {
 	Delete(ID uint) error
 }
 
+// CommentService provides an interface for work comment service layer
 type CommentService interface {
 	Create(board *m.Comment) (*m.Comment, error)
 	Find(demand services.CommentDemand) ([]*m.Comment, error)

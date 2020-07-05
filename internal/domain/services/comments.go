@@ -21,13 +21,13 @@ type CommentStorage interface {
 	Delete(uint) error
 }
 
-// ColumnService is an interactor for work with comments
+// CommentService is an interactor for work with comments
 type CommentService struct {
 	validator      v.Validator
 	commentStorage CommentStorage
 }
 
-// CommentService is a comment service constructor
+// NewCommentService is a comment service constructor
 func NewCommentService(validator v.Validator, commentStorage CommentStorage) *CommentService {
 	return &CommentService{
 		commentStorage: commentStorage,

@@ -162,8 +162,11 @@ func TestTaskAdd_PositionDuplicate(t *testing.T) {
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ($1, 'test description');`, name)
+	must(t, err, "testing: failed to insert a board for task add test")
 	_, err = a.DB.Exec(`insert into columns (name, board, position) values ($1, $2, $3);`, name, board, position)
+	must(t, err, "testing: failed to insert a column for task add test")
 	_, err = a.DB.Exec(`insert into tasks (name, "column", position) values ($1, $2, $3);`, name, column, position)
+	must(t, err, "testing: failed to insert a task for task add test")
 
 	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer(jsonStr))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/task'")

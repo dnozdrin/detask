@@ -9,9 +9,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-migrate/migrate/v4"
 	mg "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/lib/pq"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // migrations from files
+	_ "github.com/joho/godotenv/autoload"                // automatic env vars from .env files
+	_ "github.com/lib/pq"                                // postgres driver
 	"go.uber.org/zap"
 )
 
@@ -58,6 +58,9 @@ func (a *App) connectDB() {
 
 func (a *App) migrateDb() {
 	driver, err := mg.WithInstance(a.DB, &mg.Config{})
+	if err != nil {
+		a.log.Fatalf("DB migration: failed: %v", err)
+	}
 	m, err := migrate.NewWithDatabaseInstance(a.dbConf.mgPath, a.dbConf.driver, driver)
 	if err != nil {
 		a.log.Fatalf("DB migration: failed: %v", err)

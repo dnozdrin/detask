@@ -30,6 +30,7 @@ func TestColumnAdd_OK(t *testing.T) {
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ('test board', 'test description');`)
+	must(t, err, "testing: failed to insert a board for column add test")
 
 	req, err := http.NewRequest("POST", "/api/v1/column", bytes.NewBuffer(jsonStr))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/column'")
@@ -151,7 +152,9 @@ func TestColumnAdd_PositionDuplicate(t *testing.T) {
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ('test board', 'test description');`)
+	must(t, err, "testing: failed to insert a board for column add test")
 	_, err = a.DB.Exec(`insert into columns (name, board, position) values ('test name 2', $1, $2);`, board, position)
+	must(t, err, "testing: failed to insert a column for column add test")
 
 	req, err := http.NewRequest("POST", "/api/v1/column", bytes.NewBuffer(jsonStr))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/column'")
@@ -181,7 +184,9 @@ func TestColumnAdd_NameDuplicate(t *testing.T) {
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ('test board', 'test description');`)
+	must(t, err, "testing: failed to insert a board for column add test")
 	_, err = a.DB.Exec(`insert into columns (name, board, position) values ($1, $2, 1001);`, name, board)
+	must(t, err, "testing: failed to insert a column for column add test")
 
 	req, err := http.NewRequest("POST", "/api/v1/column", bytes.NewBuffer(jsonStr))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/column'")

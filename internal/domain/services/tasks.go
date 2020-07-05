@@ -21,7 +21,7 @@ type TaskStorage interface {
 	Delete(uint) error
 }
 
-// ColumnService is an interactor for work with tasks
+// TaskService is an interactor for work with tasks
 type TaskService struct {
 	validator   v.Validator
 	taskStorage TaskStorage

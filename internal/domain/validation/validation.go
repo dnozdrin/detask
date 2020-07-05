@@ -6,16 +6,19 @@ import (
 
 const failMessage = "validation failed"
 
+// Error is a container for a validation error description
 type Error struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
 }
 
+// Errors is a container for set of validation errors
 type Errors struct {
 	msg    string
 	errors []Error
 }
 
+// NewErrors is a validation errors container constructor
 func NewErrors() *Errors {
 	return &Errors{
 		msg:    failMessage,
@@ -23,14 +26,17 @@ func NewErrors() *Errors {
 	}
 }
 
+// Error will return errors container general message
 func (e *Errors) Error() string {
 	return e.msg
 }
 
+// Num will return the number of errors in the errors container
 func (e *Errors) Num() int {
 	return len(e.errors)
 }
 
+// Add will add the provided error to the errors container
 func (e *Errors) Add(err Error) {
 	e.errors = append(e.errors, err)
 }

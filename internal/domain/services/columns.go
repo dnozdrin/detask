@@ -5,6 +5,7 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
+// DefaultColPos is the default position for columns that are created internally
 const DefaultColPos = 1000
 
 // ColumnStorage represents an interface for interaction with columns DAO

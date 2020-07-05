@@ -12,6 +12,7 @@ import (
 	"strconv"
 )
 
+// ColumnHandler provides a Rest API http handlers for work with columns
 type ColumnHandler struct {
 	service ColumnService
 	log     log.Logger
@@ -19,6 +20,7 @@ type ColumnHandler struct {
 	resp    *responder
 }
 
+// NewColumnHandler is a ColumnHandler constructor
 func NewColumnHandler(service ColumnService, logger log.Logger, router routeAware) *ColumnHandler {
 	return &ColumnHandler{
 		service: service,
@@ -28,6 +30,7 @@ func NewColumnHandler(service ColumnService, logger log.Logger, router routeAwar
 	}
 }
 
+// Create will call creation of the provided resource
 func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var column models.Column
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -70,6 +73,7 @@ func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetOneById will respond with the requested resource or an error
 func (h ColumnHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -92,6 +96,7 @@ func (h ColumnHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, column)
 }
 
+// Get will respond with the requested resources or an error
 func (h ColumnHandler) Get(w http.ResponseWriter, r *http.Request) {
 	demand := make(services.ColumnDemand)
 	err := parseFilter(r, &demand)
@@ -111,6 +116,7 @@ func (h ColumnHandler) Get(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, boards)
 }
 
+// Update will trigger update of the provided resource
 func (h ColumnHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -155,6 +161,7 @@ func (h ColumnHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Delete will trigger deletion of the provided resource
 func (h ColumnHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {

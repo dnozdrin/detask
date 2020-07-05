@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-// BoardHandler represents a Rest API http handlers for boards
+// BoardHandler provides a Rest API http handlers for work with boards
 type BoardHandler struct {
 	service BoardService
 	log     log.Logger
@@ -20,7 +20,7 @@ type BoardHandler struct {
 	resp    *responder
 }
 
-// BoardHandler constructor
+// NewBoardHandler is BoardHandler constructor
 func NewBoardHandler(service BoardService, logger log.Logger, router routeAware) *BoardHandler {
 	return &BoardHandler{
 		service: service,
@@ -30,7 +30,7 @@ func NewBoardHandler(service BoardService, logger log.Logger, router routeAware)
 	}
 }
 
-// GetAll will call creation of the provided resource
+// Create will call creation of the provided resource
 func (h BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var board models.Board
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -68,7 +68,7 @@ func (h BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get will respond with the requested resource
+// GetOneById will respond with the requested resource or an error
 func (h BoardHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -91,7 +91,7 @@ func (h BoardHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, board)
 }
 
-// Get will respond with the requested resources
+// Get will respond with the requested resources or an error
 func (h BoardHandler) Get(w http.ResponseWriter, r *http.Request) {
 	boards, err := h.service.Find()
 	if err != nil {

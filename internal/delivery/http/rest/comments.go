@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// CommentHandler provides a Rest API http handlers for work with comments
 type CommentHandler struct {
 	service CommentService
 	log     log.Logger
@@ -20,6 +21,7 @@ type CommentHandler struct {
 	resp    *responder
 }
 
+// NewCommentHandler is CommentHandler constructor
 func NewCommentHandler(service CommentService, logger log.Logger, router routeAware) *CommentHandler {
 	return &CommentHandler{
 		service: service,
@@ -29,6 +31,7 @@ func NewCommentHandler(service CommentService, logger log.Logger, router routeAw
 	}
 }
 
+// Create will call creation of the provided resource
 func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var comment models.Comment
 	reqBody, err := ioutil.ReadAll(r.Body)
@@ -69,6 +72,7 @@ func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetOneById will respond with the requested resource or an error
 func (h CommentHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -91,6 +95,7 @@ func (h CommentHandler) GetOneById(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, comment)
 }
 
+// Get will respond with the requested resources or an error
 func (h CommentHandler) Get(w http.ResponseWriter, r *http.Request) {
 	demand := make(services.CommentDemand)
 	err := parseFilter(r, demand)
@@ -110,6 +115,7 @@ func (h CommentHandler) Get(w http.ResponseWriter, r *http.Request) {
 	h.resp.respondJSON(w, http.StatusOK, boards)
 }
 
+// Update will trigger update of the provided resource
 func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
@@ -150,6 +156,7 @@ func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Delete will trigger deletion of the provided resource
 func (h CommentHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	ID, err := h.router.GetIDVar(r)
 	if err != nil {
