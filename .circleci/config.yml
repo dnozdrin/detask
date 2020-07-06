@@ -25,9 +25,6 @@ jobs:
       - run:
           name: "Run unit tests"
           command: go test -coverprofile=coverage.txt -covermode=atomic -tags=test,unit ./...
-      - run:
-          name: "Build project"
-          command: go build -race -o=./bin/detask -v ./cmd/detask
       - store_artifacts:
           path: /tmp/artifacts
 
