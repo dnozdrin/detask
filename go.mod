@@ -3,6 +3,7 @@ module github.com/dnozdrin/detask
 go 1.14
 
 require (
+	github.com/go-playground/validator/v10 v10.3.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/objx v0.2.0 // indirect
