@@ -16,13 +16,12 @@ dependency:
 	@go mod vendor
 
 integration-test: dependency
-	@docker-compose up -d
+	@docker-compose -f "./build/docker-compose.yaml" up -d
 	@go test -tags=test,integrational ./test
-	@docker-compose down
+	@docker-compose -f "./build/docker-compose.yaml" down -t 1
 
 unit-test: dependency
 	@go test -tags=test,unit ./...
 
 build: dependency
 	@go build -race -o=./bin/detask -v ./cmd/detask
-
