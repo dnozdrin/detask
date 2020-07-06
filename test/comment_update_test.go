@@ -25,16 +25,14 @@ func TestCommentUpdate_OK(t *testing.T) {
 		itemsNum--
 
 		var (
-			jsonReq []byte
 			comment map[string]interface{}
 
 			expectedText = stubs[ID-1].text + " UPDATED"
 		)
 
-		reqString := fmt.Sprintf(`{"text":"%s", "task": 1}`, expectedText)
-		jsonReq = []byte(reqString)
+		jsonStr := fmt.Sprintf(`{"text":"%s", "task": 1}`, expectedText)
 
-		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/comments/%d", ID), bytes.NewBuffer(jsonReq))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/comments/%d", ID), bytes.NewBuffer([]byte(jsonStr)))
 		must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/%d'", ID)
 
 		response := executeRequest(req)
@@ -89,35 +87,33 @@ func TestCommentUpdate_ValidationError(t *testing.T) {
 
 		assert = testify.New(t)
 	)
-	t.Run("too_short_text", func(t *testing.T) {
-		jsonStr := []byte(`{"text":"", "task": 1}`)
-		req, err := http.NewRequest("PUT", "/api/v1/comments/88", bytes.NewBuffer(jsonStr))
-		must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/88'")
 
-		response := executeRequest(req)
-		err = json.Unmarshal(response.Body.Bytes(), &body)
-		must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	tests := []struct {
+		name      string
+		jsonStr   string
+		errorsNum int
+	}{
+		{"long_text", fmt.Sprintf(`{"text":"%s"}`, makeStringStub(5001)), 2},
+		{"empty_text", `{"text":""}`, 2},
+		{"task_required", fmt.Sprintf(`{"text":"%s"}`, makeStringStub(5000)), 1},
+	}
 
-		assert.Equal(http.StatusBadRequest, response.Code)
-		assert.Equal("validation failed", body["error"])
-		assert.NotEmpty(body["errors"])
-		assert.Len(body["errors"], 1)
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest("PUT", "/api/v1/comments/88", bytes.NewBuffer([]byte(test.jsonStr)))
+			must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/88'")
 
-	t.Run("too_long_text", func(t *testing.T) {
-		jsonStr := []byte(fmt.Sprintf(`{"text":"%s", "task": 1}`, makeStringStub(5001)))
-		req, err := http.NewRequest("PUT", "/api/v1/comments/88", bytes.NewBuffer(jsonStr))
-		must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/88'")
+			response := executeRequest(req)
 
-		response := executeRequest(req)
-		err = json.Unmarshal(response.Body.Bytes(), &body)
-		must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
 
-		assert.Equal(http.StatusBadRequest, response.Code)
-		assert.Equal("validation failed", body["error"])
-		assert.NotEmpty(body["errors"])
-		assert.Len(body["errors"], 1)
-	})
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestCommentUpdate_RecordNotFound(t *testing.T) {
@@ -128,10 +124,10 @@ func TestCommentUpdate_RecordNotFound(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(`{"text":"test", "task":1}`)
+		jsonStr = `{"text":"test", "task":1}`
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/comments/99", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/comments/99", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/99'")
 	response := executeRequest(req)
 
@@ -150,11 +146,11 @@ func TestCommentUpdate_WrongTask(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"text":"test", "task":999}`))
+		jsonStr = `{"text":"test", "task":999}`
 	)
 
 	_ = seedComments(t)
-	req, err := http.NewRequest("PUT", "/api/v1/comments/2", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/comments/2", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/comments/2'")
 	response := executeRequest(req)
 

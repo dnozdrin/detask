@@ -27,19 +27,18 @@ func TestTaskAdd_OK(t *testing.T) {
 		task map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(
+		jsonStr = fmt.Sprintf(
 			`{"name":"%s","description":"%s","column":%d,"position":%f}`,
 			name,
 			description,
 			column,
 			position,
-		),
 		)
 	)
 
 	_ = seedColumns(t)
 
-	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/task'")
 
 	response := executeRequest(req)
@@ -94,27 +93,41 @@ func TestTaskAdd_BadRequest(t *testing.T) {
 }
 
 func TestTaskAdd_ValidationError(t *testing.T) {
-	const name = ""
 	var (
-		err  error
 		body map[string]interface{}
 
-		description = makeStringStub(5001)
-		assert      = testify.New(t)
-		jsonStr     = []byte(fmt.Sprintf(`{"name":"%s", "description":"%s"}`, name, description))
+		assert = testify.New(t)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a POST request to '/api/v1/task'")
-	response := executeRequest(req)
+	tests := []struct {
+		name      string
+		jsonStr   string
+		errorsNum int
+	}{
+		{"long_description", fmt.Sprintf(`{"name":"test", "description":"%s"}`, makeStringStub(5001)), 3},
+		{"empty_name", `{"name":""}`, 3},
+		{"empty_name_with_description", fmt.Sprintf(`{"name":"", "description":"%s"}`, makeStringStub(5000)), 3},
+		{"name_set", `{"name":"test"}`, 2},
+		{"position_required", `{"name":"test", "column": 1}`, 1},
+		{"column_required", `{"name":"test", "position": 1000}`, 1},
+	}
 
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer([]byte(test.jsonStr)))
+			must(t, err, "testing: failed to make a POST request to '/api/v1/task'")
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 4)
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestTaskAdd_WrongColumn(t *testing.T) {
@@ -130,10 +143,10 @@ func TestTaskAdd_WrongColumn(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position))
+		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/task'")
 	response := executeRequest(req)
 
@@ -158,7 +171,7 @@ func TestTaskAdd_PositionDuplicate(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position))
+		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position)
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ($1, 'test description');`, name)
@@ -168,7 +181,7 @@ func TestTaskAdd_PositionDuplicate(t *testing.T) {
 	_, err = a.DB.Exec(`insert into tasks (name, "column", position) values ($1, $2, $3);`, name, column, position)
 	must(t, err, "testing: failed to insert a task for task add test")
 
-	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/task'")
 	response := executeRequest(req)
 

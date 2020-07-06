@@ -25,7 +25,6 @@ func TestBoardUpdate_OK(t *testing.T) {
 		itemsNum--
 
 		var (
-			jsonReq []byte
 			board   map[string]interface{}
 
 			expectedDescription = stubs[ID-1].description + " UPDATED"
@@ -37,9 +36,8 @@ func TestBoardUpdate_OK(t *testing.T) {
 			expectedName,
 			expectedDescription,
 		)
-		jsonReq = []byte(reqString)
 
-		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/boards/%d", ID), bytes.NewBuffer(jsonReq))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/boards/%d", ID), bytes.NewBuffer([]byte(reqString)))
 		must(t, err, "testing: failed to make a PUT request to '/api/v1/boards/%d'", ID)
 
 		response := executeRequest(req)
@@ -89,29 +87,46 @@ func TestBoardUpdate_BadRequest(t *testing.T) {
 }
 
 func TestBoardUpdate_ValidationError(t *testing.T) {
-	clearTable(t, "boards")
-
-	const name = ""
 	var (
-		err  error
-		body map[string]interface{}
+		body    map[string]interface{}
+		jsonStr string
 
-		description = makeStringStub(1001)
-		assert      = testify.New(t)
-		jsonStr     = []byte(fmt.Sprintf(`{"name":"%s", "description": "%s"}`, name, description))
+		assert          = testify.New(t)
+		longDescription = makeStringStub(1001)
+		longName        = makeStringStub(501)
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/boards/88", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a PUT request to '/api/v1/boards/88'")
+	type board struct {
+		name, description string
+	}
 
-	response := executeRequest(req)
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	tests := []struct {
+		name      string
+		board     board
+		errorsNum int
+	}{
+		{"long_description", board{"test", longDescription}, 1},
+		{"long_name", board{longName, "test"}, 1},
+		{"long_description_empty_name", board{"", longDescription}, 2},
+	}
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 2)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			jsonStr = fmt.Sprintf(`{"name":"%s", "description": "%s"}`, test.board.name, test.board.description)
+			req, err := http.NewRequest("PUT", "/api/v1/boards/88", bytes.NewBuffer([]byte(jsonStr)))
+			must(t, err, "testing: failed to make a PUT request to '/api/v1/boards/88'")
+
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestBoardUpdate_RecordNotFound(t *testing.T) {
@@ -127,10 +142,10 @@ func TestBoardUpdate_RecordNotFound(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "description": "%s"}`, name, description))
+		jsonStr = fmt.Sprintf(`{"name":"%s", "description": "%s"}`, name, description)
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/boards/99", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/boards/99", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/boards/99'")
 	response := executeRequest(req)
 

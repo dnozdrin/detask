@@ -25,22 +25,20 @@ func TestColumnUpdate_OK(t *testing.T) {
 		itemsNum--
 
 		var (
-			jsonReq []byte
 			column  map[string]interface{}
 
 			expectedName     = stubs[ID-1].name + " UPDATED"
 			expectedPosition = stubs[ID-1].position / 2
 		)
 
-		reqString := fmt.Sprintf(
+		jsonStr := fmt.Sprintf(
 			`{"name":"%s", "position": %f, "board": %d}`,
 			expectedName,
 			expectedPosition,
 			stubs[ID-1].board,
 		)
-		jsonReq = []byte(reqString)
 
-		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/columns/%d", ID), bytes.NewBuffer(jsonReq))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/columns/%d", ID), bytes.NewBuffer([]byte(jsonStr)))
 		must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/%d'", ID)
 
 		response := executeRequest(req)
@@ -93,40 +91,53 @@ func TestColumnUpdate_BadRequest(t *testing.T) {
 
 func TestColumnUpdate_ValidationError(t *testing.T) {
 	var (
-		err  error
 		body map[string]interface{}
 
-		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":""}`))
+		assert = testify.New(t)
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/columns/88", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/88'")
+	tests := []struct {
+		name      string
+		jsonStr   string
+		errorsNum int
+	}{
+		{"long_name", fmt.Sprintf(`{"name":"%s"}`, makeStringStub(256)), 3},
+		{"empty_name", `{"name":""}`, 3},
+		{"name_set", `{"name":"test"}`, 2},
+		{"position_required", `{"name":"test", "board": 1}`, 1},
+		{"board_required", `{"name":"test", "position": 1000}`, 1},
+	}
 
-	response := executeRequest(req)
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest("PUT", "/api/v1/columns/88", bytes.NewBuffer([]byte(test.jsonStr)))
+			must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/88'")
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 3)
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestColumnUpdate_RecordNotFound(t *testing.T) {
 	clearTable(t, "columns")
-
-	const name = "test name"
 
 	var (
 		err  error
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "position": %d, "board": %d}`, name, 1, 1))
+		jsonStr = fmt.Sprintf(`{"name":"%s", "position": %d, "board": %d}`, "test name", 1, 1)
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/columns/99", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/columns/99", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/99'")
 	response := executeRequest(req)
 
@@ -140,21 +151,16 @@ func TestColumnUpdate_RecordNotFound(t *testing.T) {
 func TestColumnUpdate_PositionDuplicate(t *testing.T) {
 	clearTables(t, "boards", "columns")
 
-	const (
-		name             = "test name"
-		board            = 1
-		position float64 = 1000
-	)
 	var (
 		err  error
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "board":%d, "position":%f}`, name, board, position))
+		jsonStr = `{"name":"test name", "board":1, "position":1000}`
 	)
 
 	_ = seedColumns(t)
-	req, err := http.NewRequest("PUT", "/api/v1/columns/2", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/columns/2", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/2'")
 	response := executeRequest(req)
 
@@ -168,22 +174,17 @@ func TestColumnUpdate_PositionDuplicate(t *testing.T) {
 func TestColumnUpdate_NameDuplicate(t *testing.T) {
 	clearTables(t, "boards", "columns")
 
-	const (
-		name             = "test name 1"
-		board            = 1
-		position float64 = 2000
-	)
 	var (
 		err  error
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "board":%d, "position":%f}`, name, board, position))
+		jsonStr = `{"name":"test name 1", "board":1, "position":1000}`
 	)
 
 	_ = seedColumns(t)
 
-	req, err := http.NewRequest("PUT", "/api/v1/columns/2", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/columns/2", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/2'")
 	response := executeRequest(req)
 

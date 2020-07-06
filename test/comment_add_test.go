@@ -25,12 +25,12 @@ func TestCommentAdd_OK(t *testing.T) {
 		comment map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"text":"%s","task":%d}`, text, task))
+		jsonStr = fmt.Sprintf(`{"text":"%s","task":%d}`, text, task)
 	)
 
 	_ = seedTasks(t)
 
-	req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/comment'")
 
 	response := executeRequest(req)
@@ -81,25 +81,37 @@ func TestCommentAdd_BadRequest(t *testing.T) {
 
 func TestCommentAdd_ValidationError(t *testing.T) {
 	var (
-		err  error
 		body map[string]interface{}
 
-		text    = makeStringStub(5001)
-		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"text":"%s", "task":%d}`, text, 1))
+		assert = testify.New(t)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a POST request to '/api/v1/comment'")
-	response := executeRequest(req)
+	tests := []struct {
+		name      string
+		jsonStr   string
+		errorsNum int
+	}{
+		{"long_text", fmt.Sprintf(`{"text":"%s"}`, makeStringStub(5001)), 2},
+		{"empty_text", `{"text":""}`, 2},
+		{"task_required", fmt.Sprintf(`{"text":"%s"}`, makeStringStub(5000)), 1},
+	}
 
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer([]byte(test.jsonStr)))
+			must(t, err, "testing: failed to make a POST request to '/api/v1/comment'")
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 1)
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestCommentAdd_WrongTask(t *testing.T) {
@@ -114,10 +126,10 @@ func TestCommentAdd_WrongTask(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"text":"%s","task":%d}`, text, task))
+		jsonStr = fmt.Sprintf(`{"text":"%s","task":%d}`, text, task)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/comment", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/comment'")
 	response := executeRequest(req)
 

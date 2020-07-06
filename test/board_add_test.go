@@ -15,20 +15,17 @@ import (
 func TestBoardAdd_OK(t *testing.T) {
 	clearTables(t, "boards", "columns")
 
-	const (
-		name        = "test name"
-		description = "test description"
-	)
-
 	var (
 		err   error
 		board map[string]interface{}
 
-		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"%s", "description":"%s"}`, name, description))
+		assert      = testify.New(t)
+		name        = makeStringStub(500)
+		description = makeStringStub(1000)
+		jsonStr     = fmt.Sprintf(`{"name":"%s", "description":"%s"}`, name, description)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/board", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", "/api/v1/board", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a POST request to '/api/v1/board'")
 
 	response := executeRequest(req)
@@ -92,27 +89,43 @@ func TestBoardAdd_BadRequest(t *testing.T) {
 }
 
 func TestBoardAdd_ValidationError(t *testing.T) {
-	clearTable(t, "boards")
-
-	const name = ""
 	var (
-		err  error
-		body map[string]interface{}
+		body    map[string]interface{}
+		jsonStr string
 
-		description = makeStringStub(1001)
-		assert      = testify.New(t)
-		jsonStr     = []byte(fmt.Sprintf(`{"name":"%s", "description": "%s"}`, name, description))
+		assert          = testify.New(t)
+		longDescription = makeStringStub(1001)
+		longName        = makeStringStub(501)
 	)
 
-	req, err := http.NewRequest("POST", "/api/v1/board", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a POST request to '/api/v1/board'")
-	response := executeRequest(req)
+	type board struct {
+		name, description string
+	}
 
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	tests := []struct {
+		name      string
+		board     board
+		errorsNum int
+	}{
+		{"long_description", board{"test", longDescription}, 1},
+		{"long_name", board{longName, "test"}, 1},
+		{"long_description_empty_name", board{"", longDescription}, 2},
+	}
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 2)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			jsonStr = fmt.Sprintf(`{"name":"%s", "description": "%s"}`, test.board.name, test.board.description)
+			req, err := http.NewRequest("POST", "/api/v1/board", bytes.NewBuffer([]byte(jsonStr)))
+			must(t, err, "testing: failed to make a POST request to '/api/v1/board'")
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }

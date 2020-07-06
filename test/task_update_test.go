@@ -28,8 +28,7 @@ func TestTaskUpdate_OK(t *testing.T) {
 		itemsNum--
 
 		var (
-			jsonReq []byte
-			task    map[string]interface{}
+			task map[string]interface{}
 
 			expectedName        = stubs[ID-1].name + " UPDATED"
 			expectedColumn      = 2
@@ -44,9 +43,8 @@ func TestTaskUpdate_OK(t *testing.T) {
 			expectedPosition,
 			expectedColumn,
 		)
-		jsonReq = []byte(reqString)
 
-		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/tasks/%d", ID), bytes.NewBuffer(jsonReq))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/api/v1/tasks/%d", ID), bytes.NewBuffer([]byte(reqString)))
 		must(t, err, "testing: failed to make a PUT request to '/api/v1/tasks/%d'", ID)
 
 		response := executeRequest(req)
@@ -102,24 +100,40 @@ func TestTaskUpdate_BadRequest(t *testing.T) {
 
 func TestTaskUpdate_ValidationError(t *testing.T) {
 	var (
-		err  error
 		body map[string]interface{}
 
-		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"description":"%s", "position": 10}`, makeStringStub(5001)))
+		assert = testify.New(t)
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/columns/88", bytes.NewBuffer(jsonStr))
-	must(t, err, "testing: failed to make a PUT request to '/api/v1/columns/88'")
+	tests := []struct {
+		name      string
+		jsonStr   string
+		errorsNum int
+	}{
+		{"long_description", fmt.Sprintf(`{"name":"test", "description":"%s"}`, makeStringStub(5001)), 3},
+		{"empty_name", `{"name":""}`, 3},
+		{"empty_name_with_description", fmt.Sprintf(`{"name":"", "description":"%s"}`, makeStringStub(5000)), 3},
+		{"name_set", `{"name":"test"}`, 2},
+		{"position_required", `{"name":"test", "column": 1}`, 1},
+		{"column_required", `{"name":"test", "position": 1000}`, 1},
+	}
 
-	response := executeRequest(req)
-	err = json.Unmarshal(response.Body.Bytes(), &body)
-	must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest("PUT", "/api/v1/tasks/88", bytes.NewBuffer([]byte(test.jsonStr)))
+			must(t, err, "testing: failed to make a PUT request to '/api/v1/tasks/88'")
 
-	assert.Equal(http.StatusBadRequest, response.Code)
-	assert.Equal("validation failed", body["error"])
-	assert.NotEmpty(body["errors"])
-	assert.Len(body["errors"], 2)
+			response := executeRequest(req)
+
+			err = json.Unmarshal(response.Body.Bytes(), &body)
+			must(t, err, "testing: failed to unmarshal %v", response.Body.Bytes())
+
+			assert.Equal(http.StatusBadRequest, response.Code)
+			assert.Equal("validation failed", body["error"])
+			assert.NotEmpty(body["errors"])
+			assert.Len(body["errors"], test.errorsNum)
+		})
+	}
 }
 
 func TestTaskUpdate_RecordNotFound(t *testing.T) {
@@ -130,10 +144,10 @@ func TestTaskUpdate_RecordNotFound(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(`{"name":"test", "description":"test", "position": 1, "column": 1}`)
+		jsonStr = `{"name":"test", "description":"test", "position": 1, "column": 1}`
 	)
 
-	req, err := http.NewRequest("PUT", "/api/v1/tasks/99", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/tasks/99", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/tasks/99'")
 	response := executeRequest(req)
 
@@ -152,11 +166,11 @@ func TestTaskUpdate_PositionDuplicate(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"test", "description":"test", "position": 1000, "column": 1}`))
+		jsonStr = fmt.Sprintf(`{"name":"test", "description":"test", "position": 1000, "column": 1}`)
 	)
 
 	_ = seedTasks(t)
-	req, err := http.NewRequest("PUT", "/api/v1/tasks/2", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/tasks/2", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/tasks/2'")
 	response := executeRequest(req)
 
@@ -175,11 +189,11 @@ func TestTaskUpdate_WrongColumn(t *testing.T) {
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = []byte(fmt.Sprintf(`{"name":"test", "description":"test", "position": 1000, "column": 999}`))
+		jsonStr = fmt.Sprintf(`{"name":"test", "description":"test", "position": 1000, "column": 999}`)
 	)
 
 	_ = seedTasks(t)
-	req, err := http.NewRequest("PUT", "/api/v1/tasks/2", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("PUT", "/api/v1/tasks/2", bytes.NewBuffer([]byte(jsonStr)))
 	must(t, err, "testing: failed to make a PUT request to '/api/v1/tasks/2'")
 	response := executeRequest(req)
 
