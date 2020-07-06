@@ -7,8 +7,7 @@
 ---
 
 `detask` is a simple server-side application that provides API for managing tasks.<br />
-- The app is available online on Heroku: [go-detask.herokuapp.com](https://go-detask.herokuapp.com/api/v1/health) <br />
-- REST API documentation is available on [dnozdrin.github.io/detask](https://dnozdrin.github.io/detask)
+The app is available online on Heroku: [go-detask.herokuapp.com](https://go-detask.herokuapp.com/api/v1/health) <br />
 
 ## Badges
 [![Circleci](https://circleci.com/gh/dnozdrin/detask.svg?style=shield)](https://circleci.com/gh/dnozdrin/detask)
@@ -26,7 +25,7 @@ These instructions will get you a copy of the project up and running on your loc
 To build, install and run the app you will need:
 
 - [Go 1.14](https://golang.org/dl)
-- [PostgreSQL](https://www.postgresql.org/download/)
+- [PostgreSQL 12](https://www.postgresql.org/download/)
 
 As alternative, you may use docker containers.
 
@@ -62,6 +61,21 @@ Supported application contexts:
 | production | for production usage |
 | testing | for running automatic tests |
 | development | should be used during development |
+
+## REST API
+REST API documentation is available on [dnozdrin.github.io/detask](https://dnozdrin.github.io/detask)
+
+To start a local instance of the Swagger UI, run the next command in the project directory ([docker-compose](https://docs.docker.com/compose) is required):
+
+```shell script
+make swagger-docs
+```
+
+To stop the Swagger UI container run:
+
+```shell script 
+make swagger-stop
+```
 
 ## Running the tests
 
