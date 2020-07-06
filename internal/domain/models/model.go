@@ -13,7 +13,7 @@ type Model struct {
 type Board struct {
 	Model
 	Name        string `json:"name" validate:"required,max=500,min=1"`
-	Description string `json:"description" validate:"max=1000"`
+	Description string `json:"description" validate:"required,max=1000"`
 }
 
 // Column represents a column (status)
@@ -28,7 +28,7 @@ type Column struct {
 type Task struct {
 	Model
 	Name        string  `json:"name" validate:"required,max=500,min=1"`
-	Description string  `json:"description" validate:"max=5000"`
+	Description string  `json:"description" validate:"required,max=5000"`
 	ColumnID    uint    `json:"column" validate:"required,numeric"`
 	Position    float64 `json:"position" validate:"required,numeric"`
 }

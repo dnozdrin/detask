@@ -28,7 +28,6 @@ func (r responder) respondJSON(w http.ResponseWriter, status int, payload interf
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
 	if _, err = w.Write(response); err != nil {
 		r.log.Errorf("error while writing JSON response: %v", err)

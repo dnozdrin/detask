@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 		app.NewConfig(
 			app.Test,
 			"stderr",
+			"",
 		),
 	)
 	code := m.Run()

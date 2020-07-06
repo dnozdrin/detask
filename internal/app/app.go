@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"github.com/dnozdrin/detask/internal/app/log"
 	"github.com/dnozdrin/detask/internal/delivery/http"
 	"github.com/dnozdrin/detask/internal/delivery/http/rest"
 	sv "github.com/dnozdrin/detask/internal/domain/services"
@@ -12,7 +13,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // migrations from files
 	_ "github.com/joho/godotenv/autoload"                // automatic env vars from .env files
 	_ "github.com/lib/pq"                                // postgres driver
+	"github.com/rs/cors"
 	"go.uber.org/zap"
+	stdhttp "net/http"
 )
 
 // App represents the main application handler
@@ -21,7 +24,7 @@ type App struct {
 	dbConf DbConfig
 
 	DB     *sql.DB
-	Router *http.Router
+	router *http.Router
 
 	log *zap.SugaredLogger
 
@@ -136,8 +139,8 @@ func (a *App) loadServices() {
 }
 
 func (a *App) setupDelivery() {
-	a.Router = http.NewRouter()
-	subRouter := a.Router.GetSubRouter("/api/v1")
+	a.router = http.NewRouter()
+	subRouter := a.router.GetSubRouter("/api/v1")
 
 	healthCheckHandler := rest.NewHealthCheck(a.log)
 	boardHandle := rest.NewBoardHandler(a.boardService, a.log, subRouter)
@@ -178,14 +181,30 @@ func (a *App) setupDelivery() {
 	}
 }
 
+func (a *App) addCORSMiddleware(handler stdhttp.Handler) stdhttp.Handler {
+	c := cors.New(cors.Options{
+		AllowedOrigins: a.config.allowedOrigins,
+		AllowedMethods: []string{"HEAD", "GET", "POST", "DELETE", "PUT"},
+		Debug:          a.config.context == Dev,
+	})
+
+	c.Log = log.NewCORSLogger(a.log)
+	return c.Handler(handler)
+}
+
 // Run will start the web server on the given address
 func (a *App) Run(addr string) {
-	if err := http.NewServer(a.Router, a.log).Start(addr); err != nil {
+	if err := http.NewServer(a.addCORSMiddleware(a.router), a.log).Start(addr); err != nil {
 		a.log.Fatalf("http: server: listen and server: %v", err)
 	}
 
 	a.syncLogger()
 	a.closeDB()
+}
+
+// ServeHTTPInternal is used for end to end tests
+func (a *App) ServeHTTPInternal(w stdhttp.ResponseWriter, req *stdhttp.Request) {
+	a.router.ServeHTTP(w, req)
 }
 
 // syncLogger flushes any buffered log entries. Applications should take care

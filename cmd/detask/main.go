@@ -22,6 +22,7 @@ func main() {
 		app.NewConfig(
 			os.Getenv("APP_CONTEXT"),
 			os.Getenv("APP_LOG_PATH"),
+			os.Getenv("APP_ALLOWED_ORIGINS"),
 		),
 	)
 

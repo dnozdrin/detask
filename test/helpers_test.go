@@ -29,7 +29,7 @@ func clearTable(t *testing.T, table string) {
 
 func executeRequest(req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
-	a.Router.ServeHTTP(rr, req)
+	a.ServeHTTPInternal(rr, req)
 
 	return rr
 }

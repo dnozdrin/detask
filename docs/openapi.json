@@ -14,7 +14,7 @@
   },
   "servers": [
     {
-      "url": "https://go-detask.herokuapp.com/api/v1/"
+      "url": "http://localhost:8080/api/v1/"
     }
   ],
   "tags": [
@@ -83,7 +83,8 @@
                   {
                     "type": "object",
                     "required": [
-                      "name"
+                      "name",
+                      "description"
                     ]
                   }
                 ]
@@ -250,7 +251,8 @@
                     "type": "object",
                     "required": [
                       "id",
-                      "name"
+                      "name",
+                      "description"
                     ]
                   }
                 ]
@@ -368,7 +370,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Column"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Column"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "board",
+                      "position"
+                    ]
+                  }
+                ]
               }
             }
           },
@@ -380,19 +394,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/Column"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "name",
-                        "board",
-                        "position"
-                      ]
-                    }
-                  ]
+                  "$ref": "#/components/schemas/Column"
                 }
               }
             },
@@ -692,6 +694,7 @@
                     "type": "object",
                     "required": [
                       "name",
+                      "description",
                       "column",
                       "position"
                     ]
@@ -889,6 +892,7 @@
                     "required": [
                       "id",
                       "name",
+                      "description",
                       "column",
                       "position"
                     ]

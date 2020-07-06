@@ -40,7 +40,7 @@ func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &column); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}
@@ -55,12 +55,12 @@ func (h ColumnHandler) Create(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newColumn)
 	case errors.Is(err, services.ErrBoardRelation):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrRecordAlreadyExist),
 		errors.Is(err, services.ErrPositionDuplicate),
 		errors.Is(err, services.ErrNameDuplicate):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
@@ -133,7 +133,7 @@ func (h ColumnHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &column); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}
@@ -148,7 +148,7 @@ func (h ColumnHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.resp.respondError(w, http.StatusNotFound, "resource was not found")
 	case errors.Is(err, services.ErrPositionDuplicate),
 		errors.Is(err, services.ErrNameDuplicate):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {

@@ -41,7 +41,7 @@ func (h TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &task); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}
@@ -56,11 +56,11 @@ func (h TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newTask)
 	case errors.Is(err, services.ErrColumnRelation):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrRecordAlreadyExist),
 		errors.Is(err, services.ErrPositionDuplicate):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
@@ -132,7 +132,7 @@ func (h TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &task); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}
@@ -146,10 +146,10 @@ func (h TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.log.Debugf("resource was not found %d", ID)
 		h.resp.respondError(w, http.StatusNotFound, "resource was not found")
 	case errors.Is(err, services.ErrColumnRelation):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrPositionDuplicate):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {

@@ -105,11 +105,11 @@ func TestTaskAdd_ValidationError(t *testing.T) {
 		errorsNum int
 	}{
 		{"long_description", fmt.Sprintf(`{"name":"test", "description":"%s"}`, makeStringStub(5001)), 3},
-		{"empty_name", `{"name":""}`, 3},
+		{"empty_name_empty_description", `{"name":""}`, 4},
 		{"empty_name_with_description", fmt.Sprintf(`{"name":"", "description":"%s"}`, makeStringStub(5000)), 3},
-		{"name_set", `{"name":"test"}`, 2},
-		{"position_required", `{"name":"test", "column": 1}`, 1},
-		{"column_required", `{"name":"test", "position": 1000}`, 1},
+		{"name_set_empty_description", `{"name":"test"}`, 3},
+		{"position_required", `{"name":"test", "column": 1}`, 2},
+		{"column_required", `{"name":"test", "position": 1000}`, 2},
 	}
 
 	for _, test := range tests {
@@ -133,17 +133,12 @@ func TestTaskAdd_ValidationError(t *testing.T) {
 func TestTaskAdd_WrongColumn(t *testing.T) {
 	clearTables(t, "columns", "tasks")
 
-	const (
-		name             = "test name"
-		column           = 1
-		position float64 = 1000
-	)
 	var (
 		err  error
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position)
+		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%d, "description":"test"}`, "test name", 1, 1000)
 	)
 
 	req, err := http.NewRequest("POST", "/api/v1/task", bytes.NewBuffer([]byte(jsonStr)))
@@ -161,17 +156,18 @@ func TestTaskAdd_PositionDuplicate(t *testing.T) {
 	clearTables(t, "boards", "columns", "tasks")
 
 	const (
-		name             = "test name"
-		board            = 1
-		column           = 1
-		position float64 = 1000
+		name                = "test name"
+		description         = "test description"
+		board               = 1
+		column              = 1
+		position    float64 = 1000
 	)
 	var (
 		err  error
 		body map[string]interface{}
 
 		assert  = testify.New(t)
-		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%f}`, name, column, position)
+		jsonStr = fmt.Sprintf(`{"name":"%s","column":%d,"position":%f, "description": "%s"}`, name, column, position, description)
 	)
 
 	_, err = a.DB.Exec(`insert into boards (name, description) values ($1, 'test description');`, name)

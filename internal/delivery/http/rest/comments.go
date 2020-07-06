@@ -41,7 +41,7 @@ func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &comment); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}
@@ -56,10 +56,10 @@ func (h CommentHandler) Create(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", url.Path)
 		h.resp.respondJSON(w, http.StatusCreated, newComment)
 	case errors.Is(err, services.ErrTaskRelation):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, services.ErrRecordAlreadyExist):
-		h.log.Warnf("constraints error: %v", err)
+		h.log.Debugf("constraints error: %v", err)
 		h.resp.respondError(w, http.StatusConflict, err.Error())
 	default:
 		if _, ok := err.(*v.Errors); ok {
@@ -132,7 +132,7 @@ func (h CommentHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.Unmarshal(reqBody, &comment); err != nil {
-		h.log.Warnf("error on request body parsing: %v", err)
+		h.log.Debugf("error on request body parsing: %v", err)
 		h.resp.respondError(w, http.StatusBadRequest, errInvalidJSON)
 		return
 	}

@@ -1,6 +1,9 @@
 package app
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	// Prod is a context for production usage
@@ -13,19 +16,26 @@ const (
 
 // Config represents the application configuration
 type Config struct {
-	context string
-	logPath string
+	context        string
+	logPath        string
+	allowedOrigins []string
 }
 
 // NewConfig is a Config constructor
-func NewConfig(context, logPath string) Config {
+func NewConfig(context, logPath, allowedOrigins string) Config {
 	if context != Prod && context != Test {
 		context = Dev
+	}
+
+	origins := strings.Split(allowedOrigins, ",")
+	for k, origin := range origins {
+		origins[k] = strings.TrimSpace(origin)
 	}
 
 	return Config{
 		context: context,
 		logPath: logPath,
+		allowedOrigins: origins,
 	}
 }
 

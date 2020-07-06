@@ -51,6 +51,7 @@ The compiled binary will be available as `./bin/detask`
 | DB_PASS |  database password | superMegaPass123#! |
 | DB_MIGRATION_PATH | path to the sql migrations | file:///app/internal/db/migrations |
 | PORT | port where the app server will work | 80 |
+| APP_ALLOWED_ORIGINS | allowed origins for 'Access-Control-Allow-Origin' header, separated with comma | http://localhost:8081,http://localhost:80 |
 | APP_CONTEXT | application context | development |
 | APP_LOG_PATH | path where app log will be stored | stderr |
 
@@ -68,12 +69,14 @@ REST API documentation is available on [dnozdrin.github.io/detask](https://dnozd
 To start a local instance of the Swagger UI, run the next command in the project directory ([docker-compose](https://docs.docker.com/compose) is required):
 
 ```shell script
-make swagger-docs
+make swagger-start
 ```
+
+This will make the documentation available at `http://localhost:8081/`
 
 To stop the Swagger UI container run:
 
-```shell script 
+```shell script
 make swagger-stop
 ```
 

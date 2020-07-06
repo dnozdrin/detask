@@ -1,4 +1,4 @@
-.PHONY: build dependency unit-test integration-test swagger-docs
+.PHONY: build dependency unit-test integration-test swagger-start swagger-stop
 
 .EXPORT_ALL_VARIABLES:
 
@@ -26,7 +26,7 @@ unit-test: dependency
 build: dependency
 	@go build -race -o=./bin/detask -v ./cmd/detask
 
-swagger-docs:
+swagger-start:
 	@docker run -p 8081:8080 -e SWAGGER_JSON=/docs/openapi.json -v "$(shell pwd)/docs/openapi.json":/docs/openapi.json --name=detask-docs --rm -d swaggerapi/swagger-ui
 
 swagger-stop:

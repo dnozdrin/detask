@@ -111,11 +111,11 @@ func TestTaskUpdate_ValidationError(t *testing.T) {
 		errorsNum int
 	}{
 		{"long_description", fmt.Sprintf(`{"name":"test", "description":"%s"}`, makeStringStub(5001)), 3},
-		{"empty_name", `{"name":""}`, 3},
+		{"empty_name_empty_description", `{"name":""}`, 4},
 		{"empty_name_with_description", fmt.Sprintf(`{"name":"", "description":"%s"}`, makeStringStub(5000)), 3},
-		{"name_set", `{"name":"test"}`, 2},
-		{"position_required", `{"name":"test", "column": 1}`, 1},
-		{"column_required", `{"name":"test", "position": 1000}`, 1},
+		{"name_set_empty_description", `{"name":"test"}`, 3},
+		{"position_required", `{"name":"test", "column": 1}`, 2},
+		{"column_required", `{"name":"test", "position": 1000}`, 2},
 	}
 
 	for _, test := range tests {
