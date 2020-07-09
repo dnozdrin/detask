@@ -28,6 +28,7 @@ To build, install and run the app you will need:
 - [PostgreSQL 12](https://www.postgresql.org/download/)
 
 As alternative, you may use docker containers.
+To run tests or serve REST API docs locally, you will need [Docker Compose](https://docs.docker.com/compose) and [Make](https://en.wikipedia.org/wiki/Make_(software)).
 
 ### Installing
 
@@ -44,16 +45,16 @@ The compiled binary will be available as `./bin/detask`
 
 | Variable | Description | Example |
 |:--------|-------------|---------|
-| DB_HOST | database host |  localhost |
-| DB_PORT | database port | 5432 |
-| DB_NAME | database name | postgres |
-| DB_USER | database user | postgres |
-| DB_PASS |  database password | superMegaPass123#! |
-| DB_MIGRATION_PATH | path to the sql migrations | file:///app/internal/db/migrations |
-| PORT | port where the app server will work | 80 |
-| APP_ALLOWED_ORIGINS | allowed origins for 'Access-Control-Allow-Origin' header, separated with comma | http://localhost:8081,http://localhost:80 |
-| APP_CONTEXT | application context | development |
-| APP_LOG_PATH | path where app log will be stored | stderr |
+| DB_HOST | database host | `localhost` |
+| DB_PORT | database port | `5432` |
+| DB_NAME | database name | `postgres` |
+| DB_USER | database user | `postgres` |
+| DB_PASS |  database password | `superMegaPass123#!` |
+| DB_MIGRATION_PATH | path to the sql migrations | `file:///app/internal/db/migrations` |
+| PORT | port where the app server will work | `80` |
+| APP_ALLOWED_ORIGINS | allowed origins for 'Access-Control-Allow-Origin' header, separated with comma | `http://localhost:8081,http://localhost:80` |
+| APP_CONTEXT | application context | `development` |
+| APP_LOG_PATH | path where app log will be stored | `stderr` |
 
 Supported application contexts:
 
@@ -66,15 +67,15 @@ Supported application contexts:
 ## REST API
 REST API documentation is available on [dnozdrin.github.io/detask](https://dnozdrin.github.io/detask)
 
-To start a local instance of the Swagger UI, run the next command in the project directory ([docker-compose](https://docs.docker.com/compose) is required):
+To start a local instance of the Swagger UI, run the next command in the project directory:
 
 ```shell script
 make swagger-start
 ```
 
-This will make the documentation available at `http://localhost:8081/`
+This will make the documentation available on `http://localhost:8081/`
 
-To stop the Swagger UI container run:
+To stop the Swagger UI container, run:
 
 ```shell script
 make swagger-stop
@@ -82,8 +83,7 @@ make swagger-stop
 
 ## Running the tests
 
-The project is supplied with unit and end to end tests.
-To run this tests locally you may need [docker-compose](https://docs.docker.com/compose) and [make](https://en.wikipedia.org/wiki/Make_(software)) to be installed on your machine.
+The project contains with unit and end to end tests.
 
 ### Unit tests
 
@@ -108,4 +108,3 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Dmytro Nozdrin** - *Initial work* - [dnozdrin](https://github.com/dnozdrin)
-
