@@ -101,6 +101,8 @@ End to end tests are placed in the `./test` directory. To start these tests run 
 make integration-test
 ```
 
+To start these tests all required for the application environment variables must be set. The command above will try to load them from the `.env` file of the project root.
+
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/dnozdrin/detask/tags). 
@@ -108,4 +110,3 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Dmytro Nozdrin** - *Initial work* - [dnozdrin](https://github.com/dnozdrin)
-

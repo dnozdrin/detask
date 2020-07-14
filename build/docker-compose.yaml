@@ -4,7 +4,7 @@ services:
     container_name: postgres_local_testing
     image: postgres:12.3-alpine
     ports:
-      - 20432:5432
+      - ${DB_PORT}:5432
     environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_PASSWORD=testing
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASS}
