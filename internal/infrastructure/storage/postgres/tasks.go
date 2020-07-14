@@ -108,7 +108,7 @@ func (dao TaskDAO) Find(demand services.TaskDemand) ([]*models.Task, error) {
 
 	where = "1=1"
 	if boardID, ok := demand["board"]; ok {
-		join = "join \"columns\" c on t.column = c.id"
+		join = `join "columns" c on t.column = c.id`
 		where = where + fmt.Sprintf(" and c.board = %d", boardID)
 	}
 	if columnID, ok := demand["column"]; ok {
