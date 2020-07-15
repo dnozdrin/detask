@@ -132,8 +132,8 @@ func (a *App) loadServices() {
 		a.log.Fatalf("%s driver support is not implemented", a.dbConf.driver)
 	}
 
-	a.boardService = sv.NewBoardService(validatorImpl, boardStorage)
-	a.columnService = sv.NewColumnService(validatorImpl, columnStorage)
+	a.boardService = sv.NewBoardService(validatorImpl, boardStorage, columnStorage, a.DB)
+	a.columnService = sv.NewColumnService(validatorImpl, columnStorage, taskStorage, a.DB)
 	a.taskService = sv.NewTaskService(validatorImpl, taskStorage)
 	a.commentService = sv.NewCommentService(validatorImpl, commentStorage)
 }
