@@ -7,79 +7,54 @@ import (
 	"time"
 
 	"github.com/dnozdrin/detask/internal/domain/models"
-	"github.com/dnozdrin/detask/internal/domain/services"
+	sv "github.com/dnozdrin/detask/internal/domain/services"
 )
 
 // BoardDAO is a data access object for boards
 type BoardDAO struct {
-	db  db
+	db  querier
 	log log.Logger
 }
 
 // NewBoardDAO represents a BoardDAO constructor
-func NewBoardDAO(db db, log log.Logger) *BoardDAO {
-	return &BoardDAO{
+func NewBoardDAO(db querier, log log.Logger) BoardDAO {
+	return BoardDAO{
 		db:  db,
 		log: log,
 	}
 }
 
-// SaveWithDefaultColumn will store the provided board into the database and return
+// Save will store the provided board into the database and return
 // a pointer to the saved entity. Returns nil and an error in case of error.
-func (dao *BoardDAO) SaveWithDefaultColumn(board *models.Board) (*models.Board, error) {
+func (dao BoardDAO) Save(board *models.Board) (*models.Board, error) {
 	if board == nil {
 		dao.log.Error("boards storage: nil pointer given")
 		return nil, errors.New("nil board pointer given")
 	}
 	if board.ID > 0 {
-		dao.log.Warnf("boards storage: %v, ID: %d", services.ErrRecordAlreadyExist, board.ID)
-		return nil, services.ErrRecordAlreadyExist
+		dao.log.Warnf("boards storage: %v, ID: %d", sv.ErrRecordAlreadyExist, board.ID)
+		return nil, sv.ErrRecordAlreadyExist
 	}
 
-	tx, err := dao.db.Begin()
-	if err != nil {
-		dao.log.Errorf("boards storage: failed to start transaction: %v", err)
-		return nil, err
-	}
-
-	defer deferred(dao.log, tx.Rollback)
-	{
-		stmt, err := tx.Prepare(`
+	stmt, err := dao.db.Prepare(`
 		insert into boards (name, description)
 		values ($1, $2)
 		returning id, created_at, updated_at, name, description;`,
-		)
-		if err != nil {
-			dao.log.Errorf("boards storage: failed to prepare statement: %v", err)
-			return nil, err
-		}
-
-		defer deferred(dao.log, stmt.Close)
-		if err = stmt.QueryRow(board.Name, board.Description).Scan(
-			&board.ID,
-			&board.CreatedAt,
-			&board.UpdatedAt,
-			&board.Name,
-			&board.Description,
-		); err != nil {
-			dao.log.Errorf("boards storage: error while querying a row: %v", err)
-			return nil, err
-		}
+	)
+	if err != nil {
+		dao.log.Errorf("boards storage: failed to prepare statement: %v", err)
+		return nil, err
 	}
 
-	{
-		if _, err := tx.Exec(
-			`insert into columns (name, board, position) values ('Default', $1, $2);`,
-			board.ID,
-			services.DefaultColPos,
-		); err != nil {
-			dao.log.Error("boards storage: error on default column add: %v", err)
-			return nil, err
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
-		dao.log.Errorf("boards storage: error on commit: %v", err)
+	defer deferred(dao.log, stmt.Close)
+	if err = stmt.QueryRow(board.Name, board.Description).Scan(
+		&board.ID,
+		&board.CreatedAt,
+		&board.UpdatedAt,
+		&board.Name,
+		&board.Description,
+	); err != nil {
+		dao.log.Errorf("boards storage: error while querying a row: %v", err)
 		return nil, err
 	}
 
@@ -88,7 +63,7 @@ func (dao *BoardDAO) SaveWithDefaultColumn(board *models.Board) (*models.Board, 
 
 // FindOneById will return a pointer to a board with the provided ID or
 // a pointer to an empty board and an error
-func (dao *BoardDAO) FindOneById(ID uint) (*models.Board, error) {
+func (dao BoardDAO) FindOneById(ID uint) (*models.Board, error) {
 	board := &models.Board{}
 	if err := dao.db.QueryRow(`
 		select id, created_at, updated_at, name, description
@@ -108,14 +83,14 @@ func (dao *BoardDAO) FindOneById(ID uint) (*models.Board, error) {
 			return nil, err
 		}
 
-		return nil, services.ErrRecordNotFound
+		return nil, sv.ErrRecordNotFound
 	}
 
 	return board, nil
 }
 
 // Find will return all found boards or an error
-func (dao *BoardDAO) Find() ([]*models.Board, error) {
+func (dao BoardDAO) Find() ([]*models.Board, error) {
 	boards := make([]*models.Board, 0)
 
 	rows, err := dao.db.Query(`select id, created_at, updated_at, name, description from boards`)
@@ -150,7 +125,7 @@ func (dao *BoardDAO) Find() ([]*models.Board, error) {
 
 // Update will update the name and description of the persistent representation
 // of the board
-func (dao *BoardDAO) Update(board *models.Board) (*models.Board, error) {
+func (dao BoardDAO) Update(board *models.Board) (*models.Board, error) {
 	if board == nil {
 		dao.log.Error("boards storage: nil pointer given")
 		return nil, errors.New("nil board pointer given")
@@ -178,14 +153,14 @@ func (dao *BoardDAO) Update(board *models.Board) (*models.Board, error) {
 			return board, err
 		}
 
-		return nil, services.ErrRecordNotFound
+		return nil, sv.ErrRecordNotFound
 	}
 
 	return board, nil
 }
 
 // Delete will delete the record in the database
-func (dao *BoardDAO) Delete(ID uint) error {
+func (dao BoardDAO) Delete(ID uint) error {
 	_, err := dao.db.Exec(`delete from boards where id = $1`, ID)
 	if err != nil {
 		dao.log.Errorf("boards storage: error while deleting a row: %v", err)
@@ -193,4 +168,10 @@ func (dao *BoardDAO) Delete(ID uint) error {
 	}
 
 	return nil
+}
+
+// WithTx will return the BoardDAO that will use the provided transaction
+func (dao BoardDAO) WithTx(tx *sql.Tx) sv.BoardStorage {
+	dao.db = tx
+	return dao
 }

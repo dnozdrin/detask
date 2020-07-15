@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/dnozdrin/detask/internal/app/log"
 	"github.com/dnozdrin/detask/internal/domain/models"
-	"github.com/dnozdrin/detask/internal/domain/services"
+	sv "github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"time"
@@ -13,13 +13,13 @@ import (
 
 // ColumnDAO is a data access object for columns
 type ColumnDAO struct {
-	db  db
+	db  querier
 	log log.Logger
 }
 
 // NewColumnDAO represents a ColumnDAO constructor
-func NewColumnDAO(db db, log log.Logger) *ColumnDAO {
-	return &ColumnDAO{
+func NewColumnDAO(db querier, log log.Logger) ColumnDAO {
+	return ColumnDAO{
 		db:  db,
 		log: log,
 	}
@@ -33,8 +33,8 @@ func (dao ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 		return nil, errors.New("nil column pointer given")
 	}
 	if column.ID > 0 {
-		dao.log.Warnf("columns storage: %v, ID: %d", services.ErrRecordAlreadyExist, column.ID)
-		return nil, services.ErrRecordAlreadyExist
+		dao.log.Warnf("columns storage: %v, ID: %d", sv.ErrRecordAlreadyExist, column.ID)
+		return nil, sv.ErrRecordAlreadyExist
 	}
 
 	stmt, err := dao.db.Prepare(`
@@ -58,11 +58,11 @@ func (dao ColumnDAO) Save(column *models.Column) (*models.Column, error) {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
 			switch pgErr.Constraint {
 			case "columns_name_board_key":
-				err = services.ErrNameDuplicate
+				err = sv.ErrNameDuplicate
 			case "columns_position_board_key":
-				err = services.ErrPositionDuplicate
+				err = sv.ErrPositionDuplicate
 			case "columns_board_fkey":
-				err = services.ErrBoardRelation
+				err = sv.ErrBoardRelation
 			default:
 				dao.log.Errorf("columns storage: integrity constraint violation: %v", err)
 			}
@@ -99,14 +99,14 @@ func (dao ColumnDAO) FindOneById(ID uint) (*models.Column, error) {
 			return nil, err
 		}
 
-		return nil, services.ErrRecordNotFound
+		return nil, sv.ErrRecordNotFound
 	}
 
 	return column, nil
 }
 
 // Find will return all found columns or an error
-func (dao ColumnDAO) Find(demand services.ColumnDemand) ([]*models.Column, error) {
+func (dao ColumnDAO) Find(demand sv.ColumnDemand) ([]*models.Column, error) {
 	const querySelect = "id, created_at, updated_at, name, board, position"
 	columns := make([]*models.Column, 0)
 	where := "1=1"
@@ -173,13 +173,13 @@ func (dao ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 		&column.Position,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			err = services.ErrRecordNotFound
+			err = sv.ErrRecordNotFound
 		} else if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
 			switch pgErr.Constraint {
 			case "columns_name_board_key":
-				err = services.ErrNameDuplicate
+				err = sv.ErrNameDuplicate
 			case "columns_position_board_key":
-				err = services.ErrPositionDuplicate
+				err = sv.ErrPositionDuplicate
 			default:
 				dao.log.Errorf("columns storage: integrity constraint violation: %v", err)
 			}
@@ -193,91 +193,81 @@ func (dao ColumnDAO) Update(column *models.Column) (*models.Column, error) {
 	return column, nil
 }
 
-// Delete will the column with the provided ID. The last column cannot be deleted.
-// When a column is deleted, its tasks are moved to the column to the left of the
-// current or to the right of the current if the curring is the leftmost
+// Delete will the column with the provided ID.
 func (dao ColumnDAO) Delete(ID uint) error {
-	tx, err := dao.db.Begin()
+	res, err := dao.db.Exec(`delete from "columns" where id = $1`, ID)
 	if err != nil {
-		dao.log.Errorf("columns storage: failed to start transaction: %v", err)
+		dao.log.Errorf("columns storage: error while deleting a column ID: %d: %v", ID, err)
 		return err
 	}
 
-	{
-		var (
-			position     float64
-			num, boardID uint
-		)
-
-		err = tx.QueryRow(`
-		select count(c1.id), c1.board, c1.position
-		from "columns" c1 left join "columns" c2 on c1.board = c2.board
-		where c1.id = $1
-		group by c1.board, c1.position`, ID).Scan(&num, &boardID, &position)
-		if err != nil {
-			dao.log.Errorf("columns storage: error while querying a row: %v", err)
-			return err
-		}
-
-		if num <= 1 {
-			return services.ErrLastColumn
-		}
+	rowsNum, err := res.RowsAffected()
+	if err != nil {
+		dao.log.Error(err)
+		return err
 	}
 
-	{
-		var (
-			prev, next sql.NullInt64
-			target     uint
-		)
-		err = tx.QueryRow(`
-		select prev, next from
-			(select
-			        id,
-			        lag(id) over (order by position) as prev,
-			        lead(id) over (order by position) as next
-			from "columns" ) sub
-		where id = $1`, ID).Scan(&prev, &next)
-		if err != nil {
-			dao.log.Errorf("columns storage: error while querying prev and next records: %v", err)
-			return err
-		}
-
-		if prev.Valid && prev.Int64 > 0 {
-			target = uint(prev.Int64)
-		} else if next.Valid && next.Int64 > 0 {
-			target = uint(next.Int64)
-		} else {
-			err = errors.Errorf("columns storage: target column for tasks transfer not found, column ID: %d", ID)
-			dao.log.Error(err)
-			return err
-		}
-
-		_, err = tx.Exec(`update tasks set "column" = $1 where "column" = $2`, target, ID)
-		if err != nil {
-			dao.log.Errorf("columns storage: error while moving tasks from column ID: %d: %v", ID, err)
-			return err
-		}
+	if rowsNum != 1 {
+		err = errors.Errorf("tried to delete %d rows, want 1", rowsNum)
+		dao.log.Error(err)
+		return err
 	}
 
-	{
-		res, err := tx.Exec(`delete from "columns" where id = $1`, ID)
-		if err != nil {
-			dao.log.Errorf("columns storage: error while deleting a column ID: %d: %v", ID, err)
-			return err
-		}
+	return nil
+}
 
-		rowsNum, err := res.RowsAffected()
-		if err != nil {
-			dao.log.Error(err)
-			return err
-		}
+// WithTx will return the ColumnDAO that will use the provided transaction
+func (dao ColumnDAO) WithTx(tx *sql.Tx) sv.ColumnStorage {
+	dao.db = tx
+	return dao
+}
 
-		if rowsNum != 1 {
-			err = errors.Errorf("tried to delete %d rows, want 1", rowsNum)
-			dao.log.Error(err)
-			return err
-		}
+// FindLeftColumn will find a column to the left of the one with the provided ID
+func (dao ColumnDAO) CountColumnsByBoard(ID uint) (int, error) {
+	var num int
+	if err := dao.db.QueryRow(`select count(c1.id) from "columns" c1 where c1.board = $1`, ID).
+		Scan(&num); err != nil {
+		dao.log.Errorf("columns storage: error while counting columns by board: %v", err)
+		return 0, err
 	}
 
-	return tx.Commit()
+	return num, nil
+}
+
+func (dao ColumnDAO) FindColumnToTheLeft(ID uint) (uint, error) {
+	var prev sql.NullInt64
+	if err := dao.db.QueryRow(`
+		select prev
+		from (select id, lag(id) over (order by position) as prev from "columns") sub
+		where id = $1`, ID).Scan(&prev); err != nil {
+		dao.log.Errorf("columns storage: error while querying prev record: %v", err)
+		return 0, err
+	}
+
+	if !prev.Valid || prev.Int64 <= 0 {
+		err := errors.New("columns storage: invalid left column record")
+		dao.log.Errorf("%v: %v", err, prev)
+		return 0, err
+	}
+
+	return uint(prev.Int64), nil
+}
+
+func (dao ColumnDAO) FindColumnToTheRight(ID uint) (uint, error) {
+	var next sql.NullInt64
+	if err := dao.db.QueryRow(`
+		select next
+		from (select id, lead(id) over (order by position) as next from "columns") sub
+		where id = $1`, ID).Scan(&next); err != nil {
+		dao.log.Errorf("columns storage: error while querying prev record: %v", err)
+		return 0, err
+	}
+
+	if !next.Valid || next.Int64 <= 0 {
+		err := errors.New("columns storage: invalid right column record")
+		dao.log.Errorf("%v: %v", err, next)
+		return 0, err
+	}
+
+	return uint(next.Int64), nil
 }

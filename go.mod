@@ -3,6 +3,7 @@ module github.com/dnozdrin/detask
 go 1.14
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/golang-migrate/migrate/v4 v4.11.0
 	github.com/gorilla/mux v1.7.4

@@ -14,12 +14,12 @@ import (
 
 // CommentsDAO is a data access object for comments
 type CommentsDAO struct {
-	db  db
+	db  querier
 	log log.Logger
 }
 
 // NewCommentsDAO represents a CommentsDAO constructor
-func NewCommentsDAO(db db, log log.Logger) *CommentsDAO {
+func NewCommentsDAO(db querier, log log.Logger) *CommentsDAO {
 	return &CommentsDAO{
 		db:  db,
 		log: log,
