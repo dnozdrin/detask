@@ -51,31 +51,28 @@ func (l *LoggerMock) Debug(args ...interface{}) {
 	l.Called(args)
 }
 
-type DBMock struct {
+var _ querier = new(QuerierMock)
+
+type QuerierMock struct {
 	mock.Mock
 }
 
-func (db *DBMock) Begin() (*sql.Tx, error) {
-	returnValues := db.Called()
-	return returnValues.Get(0).(*sql.Tx), returnValues.Error(1)
+func (db *QuerierMock) Prepare(query string) (*sql.Stmt, error) {
+	returnValues := db.Called(query)
+	return returnValues.Get(0).(*sql.Stmt), returnValues.Error(1)
 }
 
-func (db *DBMock) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (db *QuerierMock) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	returnValues := db.Called(query, args)
 	return returnValues.Get(0).(*sql.Rows), returnValues.Error(1)
 }
 
-func (db *DBMock) QueryRow(query string, args ...interface{}) *sql.Row {
+func (db *QuerierMock) QueryRow(query string, args ...interface{}) *sql.Row {
 	returnValues := db.Called(query, args)
 	return returnValues.Get(0).(*sql.Row)
 }
 
-func (db *DBMock) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (db *QuerierMock) Exec(query string, args ...interface{}) (sql.Result, error) {
 	returnValues := db.Called(query, args)
 	return returnValues.Get(0).(sql.Result), returnValues.Error(1)
-}
-
-func (db *DBMock) Prepare(query string) (*sql.Stmt, error) {
-	returnValues := db.Called(query)
-	return returnValues.Get(0).(*sql.Stmt), returnValues.Error(1)
 }

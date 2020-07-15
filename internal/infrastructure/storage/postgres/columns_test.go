@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"github.com/dnozdrin/detask/internal/domain/models"
 	"github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/pkg/errors"
@@ -17,7 +18,7 @@ func TestColumnDAO_Save(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Error", mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		columnDAO := NewColumnDAO(db, logger)
 		res, err := columnDAO.Save(nil)
 
@@ -28,7 +29,7 @@ func TestColumnDAO_Save(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Warnf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		columnDAO := NewColumnDAO(db, logger)
 		column := &models.Column{Model: models.Model{ID: 1}}
 		res, err := columnDAO.Save(column)
@@ -44,7 +45,7 @@ func TestColumnDAO_Update(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Error", mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		columnDAO := NewColumnDAO(db, logger)
 		res, err := columnDAO.Update(nil)
 
@@ -55,7 +56,7 @@ func TestColumnDAO_Update(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		db.On("Prepare", mock.Anything).Return(&sql.Stmt{}, errors.New("dummy"))
 		columnDAO := NewColumnDAO(db, logger)
 		column := &models.Column{Model: models.Model{ID: 1}}
@@ -69,14 +70,24 @@ func TestColumnDAO_Update(t *testing.T) {
 func TestColumnDAO_Delete(t *testing.T) {
 	t.Run("exec_error", func(t *testing.T) {
 		const ID uint = 0
+		var result driver.RowsAffected = 0
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
-		db.On("Begin").Return(&sql.Tx{}, errors.New("dummy"))
+		db := new(QuerierMock)
+		db.On("Exec", mock.Anything, []interface{}{ID}).Return(result, errors.New("dummy"))
 		columnDAO := NewColumnDAO(db, logger)
 		err := columnDAO.Delete(ID)
 
 		assert.Error(t, err)
 	})
+}
+
+func TestColumnDAO_WithTx(t *testing.T) {
+	tx := &sql.Tx{}
+	columnDAO := NewColumnDAO(new(QuerierMock), new(LoggerMock))
+	txColumnDAO := columnDAO.WithTx(tx)
+
+	assert.NotEqual(t, columnDAO, txColumnDAO)
+	assert.Equal(t, txColumnDAO.(ColumnDAO).db, tx)
 }

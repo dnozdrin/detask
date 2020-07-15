@@ -13,14 +13,14 @@ import (
 	"testing"
 )
 
-func TestBoardDAO_SaveWithDefaultColumn(t *testing.T) {
+func TestBoardDAO_Save(t *testing.T) {
 	t.Run("error_on_nil_board", func(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Error", mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		boardDAO := NewBoardDAO(db, logger)
-		res, err := boardDAO.SaveWithDefaultColumn(nil)
+		res, err := boardDAO.Save(nil)
 
 		assert.Nil(t, res)
 		assert.Error(t, err)
@@ -29,23 +29,24 @@ func TestBoardDAO_SaveWithDefaultColumn(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Warnf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		boardDAO := NewBoardDAO(db, logger)
 		board := &models.Board{Model: models.Model{ID: 1}}
-		res, err := boardDAO.SaveWithDefaultColumn(board)
+		res, err := boardDAO.Save(board)
 
 		assert.Nil(t, res)
 		assert.Error(t, err)
 		assert.Equal(t, services.ErrRecordAlreadyExist, err)
 	})
-	t.Run("transaction_start_fail", func(t *testing.T) {
+	t.Run("stmt_prepare_error", func(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
-		db.On("Begin").Return(&sql.Tx{}, errors.New("dummy"))
+		db := new(QuerierMock)
+		db.On("Prepare", mock.Anything).Return(&sql.Stmt{}, errors.New("dummy"))
 		boardDAO := NewBoardDAO(db, logger)
-		res, err := boardDAO.SaveWithDefaultColumn(&models.Board{})
+		board := &models.Board{Model: models.Model{}}
+		res, err := boardDAO.Save(board)
 
 		assert.Nil(t, res)
 		assert.Error(t, err)
@@ -57,7 +58,7 @@ func TestBoardDAO_Find(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		db.On("Query", mock.Anything, mock.Anything).Return(&sql.Rows{}, errors.New("dummy"))
 		boardDAO := NewBoardDAO(db, logger)
 		res, err := boardDAO.Find()
@@ -72,7 +73,7 @@ func TestBoardDAO_Update(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Error", mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		boardDAO := NewBoardDAO(db, logger)
 		res, err := boardDAO.Update(nil)
 
@@ -83,7 +84,7 @@ func TestBoardDAO_Update(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		db.On("Prepare", mock.Anything).Return(&sql.Stmt{}, errors.New("dummy"))
 		boardDAO := NewBoardDAO(db, logger)
 		board := &models.Board{Model: models.Model{ID: 1}}
@@ -101,11 +102,20 @@ func TestBoardDAO_Delete(t *testing.T) {
 		logger := new(LoggerMock)
 		logger.On("Errorf", mock.Anything, mock.Anything).Return()
 
-		db := new(DBMock)
+		db := new(QuerierMock)
 		db.On("Exec", mock.Anything, []interface{}{ID}).Return(result, errors.New("dummy"))
 		boardDAO := NewBoardDAO(db, logger)
 		err := boardDAO.Delete(ID)
 
 		assert.Error(t, err)
 	})
+}
+
+func TestBoardDAO_WithTx(t *testing.T) {
+	tx := &sql.Tx{}
+	boardDAO := NewBoardDAO(new(QuerierMock), new(LoggerMock))
+	txBoardDAO := boardDAO.WithTx(tx)
+
+	assert.NotEqual(t, boardDAO, txBoardDAO)
+	assert.Equal(t, txBoardDAO.(BoardDAO).db, tx)
 }
