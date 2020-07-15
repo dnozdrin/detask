@@ -3,6 +3,7 @@
 package services
 
 import (
+	"database/sql"
 	m "github.com/dnozdrin/detask/internal/domain/models"
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 	"github.com/stretchr/testify/mock"
@@ -23,7 +24,7 @@ type MockedBoardStorage struct {
 	mock.Mock
 }
 
-func (bs *MockedBoardStorage) SaveWithDefaultColumn(board *m.Board) (*m.Board, error) {
+func (bs *MockedBoardStorage) Save(board *m.Board) (*m.Board, error) {
 	returnValues := bs.Called(board)
 	return returnValues.Get(0).(*m.Board), returnValues.Error(1)
 }
@@ -46,6 +47,11 @@ func (bs *MockedBoardStorage) Update(board *m.Board) (*m.Board, error) {
 func (bs *MockedBoardStorage) Delete(ID uint) error {
 	returnValues := bs.Called(ID)
 	return returnValues.Error(0)
+}
+
+func (bs *MockedBoardStorage) WithTx(tx *sql.Tx) BoardStorage {
+	returnValues := bs.Called(tx)
+	return returnValues.Get(0).(BoardStorage)
 }
 
 var _ ColumnStorage = new(MockedColumnStorage)
@@ -79,6 +85,26 @@ func (cs *MockedColumnStorage) Delete(ID uint) error {
 	return returnValues.Error(0)
 }
 
+func (cs *MockedColumnStorage) WithTx(tx *sql.Tx) ColumnStorage {
+	returnValues := cs.Called(tx)
+	return returnValues.Get(0).(ColumnStorage)
+}
+
+func (cs *MockedColumnStorage) CountColumnsByBoard(ID uint) (int, error) {
+	returnValues := cs.Called(ID)
+	return returnValues.Get(0).(int), returnValues.Error(1)
+}
+
+func (cs *MockedColumnStorage) FindColumnToTheLeft(ID uint) (uint, error) {
+	returnValues := cs.Called(ID)
+	return returnValues.Get(0).(uint), returnValues.Error(1)
+}
+
+func (cs *MockedColumnStorage) FindColumnToTheRight(ID uint) (uint, error) {
+	returnValues := cs.Called(ID)
+	return returnValues.Get(0).(uint), returnValues.Error(1)
+}
+
 var _ TaskStorage = new(MockedTaskStorage)
 
 type MockedTaskStorage struct {
@@ -107,6 +133,16 @@ func (ts *MockedTaskStorage) Update(task *m.Task) (*m.Task, error) {
 
 func (ts *MockedTaskStorage) Delete(ID uint) error {
 	returnValues := ts.Called(ID)
+	return returnValues.Error(0)
+}
+
+func (ts *MockedTaskStorage) WithTx(tx *sql.Tx) TaskStorage {
+	returnValues := ts.Called(tx)
+	return returnValues.Get(0).(TaskStorage)
+}
+
+func (ts *MockedTaskStorage) MoveToColumn(from, to uint) error {
+	returnValues := ts.Called(from, to)
 	return returnValues.Error(0)
 }
 
@@ -139,4 +175,15 @@ func (coms *MockedCommentStorage) Update(comment *m.Comment) (*m.Comment, error)
 func (coms *MockedCommentStorage) Delete(ID uint) error {
 	returnValues := coms.Called(ID)
 	return returnValues.Error(0)
+}
+
+var _ TxBeginner = new(MockedTxBeginner)
+
+type MockedTxBeginner struct {
+	mock.Mock
+}
+
+func (txb *MockedTxBeginner) Begin() (*sql.Tx, error) {
+	returnValues := txb.Called()
+	return returnValues.Get(0).(*sql.Tx), returnValues.Error(1)
 }

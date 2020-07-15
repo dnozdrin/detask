@@ -5,22 +5,6 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
-// TaskStorage represents an interface for interaction with tasks DAO
-type TaskStorage interface {
-	// Save will persist the provided task
-	Save(*m.Task) (*m.Task, error)
-	// FindOneById should return a task with the provided ID
-	FindOneById(uint) (*m.Task, error)
-	// Find should return a slice of boards pointers sorted by name, that meet the
-	// provided demand
-	Find(TaskDemand) ([]*m.Task, error)
-	// Update should update  the name and the description of the task
-	Update(*m.Task) (*m.Task, error)
-	// Delete should set current deletion time to a task with the provided ID
-	// and to all dependant records
-	Delete(uint) error
-}
-
 // TaskService is an interactor for work with tasks
 type TaskService struct {
 	validator   v.Validator

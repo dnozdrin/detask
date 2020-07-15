@@ -5,22 +5,6 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
-// CommentStorage represents an interface for interaction with comments DAO
-type CommentStorage interface {
-	// Save will persist the provided comment
-	Save(*m.Comment) (*m.Comment, error)
-	// FindOneById should return a comment with the provided ID
-	FindOneById(uint) (*m.Comment, error)
-	// Find should return a slice of comments pointers sorted by creation date
-	// (from newest to oldest), that meet the provided demand
-	Find(CommentDemand) ([]*m.Comment, error)
-	// Update should update the comment text
-	Update(*m.Comment) (*m.Comment, error)
-	// Delete should set current deletion time to a comment with the provided ID
-	// and to all dependant records
-	Delete(uint) error
-}
-
 // CommentService is an interactor for work with comments
 type CommentService struct {
 	validator      v.Validator

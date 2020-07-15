@@ -34,4 +34,7 @@ var (
 
 	// ErrLastColumn is used for cases when there is an attempt to delete the last column on a board.
 	ErrLastColumn = errors.New("the last column can not be deleted")
+
+	// ErrTargetColumn is used for cases when the target column for tasks on a column deletion was not found
+	ErrTargetColumn = errors.Errorf("columns storage: target column for tasks transfer not found")
 )
