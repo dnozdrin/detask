@@ -5,35 +5,26 @@ import (
 	v "github.com/dnozdrin/detask/internal/domain/validation"
 )
 
-// BoardStorage represents an interface for interaction with boards DAO
-type BoardStorage interface {
-	// SaveWithDefaultColumn should persist the provided board and create a default
-	// column for it
-	SaveWithDefaultColumn(*m.Board) (*m.Board, error)
-	// FindOneById should return a board with the provided ID
-	FindOneById(uint) (*m.Board, error)
-	// Find should return a slice of boards pointers sorted by name, that meet the
-	// provided demand
-	Find() ([]*m.Board, error)
-	// Update should update all board fields by the provided data
-	Update(*m.Board) (*m.Board, error)
-	// Delete should set current deletion time to a board with the provided ID
-	// and to all dependant records
-	Delete(uint) error
-}
-
 // BoardService is an interactor for work with boards
 type BoardService struct {
 	validator     v.Validator
 	boardStorage  BoardStorage
 	columnStorage ColumnStorage
+	txBeginner    TxBeginner
 }
 
 // NewBoardService is a board service constructor
-func NewBoardService(validator v.Validator, boardStorage BoardStorage) *BoardService {
+func NewBoardService(
+	validator v.Validator,
+	boardStorage BoardStorage,
+	columnStorage ColumnStorage,
+	txBeginner TxBeginner,
+) *BoardService {
 	return &BoardService{
-		validator:    validator,
-		boardStorage: boardStorage,
+		validator:     validator,
+		boardStorage:  boardStorage,
+		columnStorage: columnStorage,
+		txBeginner:    txBeginner,
 	}
 }
 
@@ -44,7 +35,33 @@ func (b *BoardService) Create(board *m.Board) (*m.Board, error) {
 		return nil, err
 	}
 
-	return b.boardStorage.SaveWithDefaultColumn(board)
+	tx, err := b.txBeginner.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	boardStorage := b.boardStorage.WithTx(tx)
+	board, err = boardStorage.Save(board)
+	if err != nil {
+		return nil, err
+	}
+
+	column := &m.Column{
+		Name:     "Default",
+		BoardID:  board.ID,
+		Position: DefaultColPos,
+	}
+	columnStorage := b.columnStorage.WithTx(tx)
+	if _, err = columnStorage.Save(column); err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return board, nil
 }
 
 // Find will return all not deleted boards and an error in case

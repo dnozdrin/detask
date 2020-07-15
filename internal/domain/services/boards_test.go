@@ -3,6 +3,7 @@
 package services
 
 import (
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -14,11 +15,15 @@ import (
 
 func TestNewBoardService(t *testing.T) {
 	boardStorage := new(MockedBoardStorage)
+	columnStorage := new(MockedColumnStorage)
 	validation := new(MockedValidation)
-	boardService := NewBoardService(validation, boardStorage)
+	txBeginner := new(MockedTxBeginner)
+	boardService := NewBoardService(validation, boardStorage, columnStorage, txBeginner)
 
 	assert.Equal(t, validation, boardService.validator)
 	assert.Equal(t, boardStorage, boardService.boardStorage)
+	assert.Equal(t, columnStorage, boardService.columnStorage)
+	assert.Equal(t, txBeginner, boardService.txBeginner)
 }
 
 func TestBoardService_Create(t *testing.T) {
@@ -26,20 +31,44 @@ func TestBoardService_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		var validationErr *v.Errors
+
+		db, dbmock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+		defer db.Close()
+		dbmock.ExpectBegin()
+		dbmock.ExpectCommit()
+		tx, _ := db.Begin()
+
+		savedBoard := &m.Board{Model: m.Model{ID: 123}, Name: "dummy"}
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("SaveWithDefaultColumn", boardIn).Return(boardIn, nil)
+		boardStorage.On("Save", boardIn).Return(savedBoard, nil)
+		boardStorage.On("WithTx", tx).Return(boardStorage)
 
 		validation := new(MockedValidation)
 		validation.On("Validate", *boardIn).Return(validationErr)
 
-		boardService := &BoardService{
-			validator:    validation,
-			boardStorage: boardStorage,
-		}
-		boardOut, err := boardService.Create(boardIn)
+		column := &m.Column{Name: "Default", Position: DefaultColPos, BoardID: savedBoard.ID}
+		columnStorage := new(MockedColumnStorage)
+		columnStorage.On("Save", column).Return(column, nil)
+		columnStorage.On("WithTx", tx).Return(columnStorage)
 
-		assert.NotNil(t, boardOut)
+		txBeginner := new(MockedTxBeginner)
+		txBeginner.On("Begin").Return(tx, nil)
+
+		boardService := &BoardService{
+			validator:     validation,
+			boardStorage:  boardStorage,
+			columnStorage: columnStorage,
+			txBeginner:    txBeginner,
+		}
+
+		resultBoard, err := boardService.Create(boardIn)
+
+		assert.NotNil(t, resultBoard)
 		assert.Nil(t, err)
+		assert.Equal(t, savedBoard, resultBoard)
 	})
 	t.Run("validation_error", func(t *testing.T) {
 		validationErr := v.NewErrors()
@@ -54,24 +83,145 @@ func TestBoardService_Create(t *testing.T) {
 		assert.Equal(t, validationErr, resultOut)
 		assert.Empty(t, boardOut)
 	})
-	t.Run("database_error", func(t *testing.T) {
+	t.Run("board_save_error", func(t *testing.T) {
 		var validationErr *v.Errors
 		dbErr := errors.New("simple error")
 
+		db, dbmock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+		defer db.Close()
+		dbmock.ExpectBegin()
+		dbmock.ExpectRollback()
+		tx, _ := db.Begin()
+
 		boardStorage := new(MockedBoardStorage)
-		boardStorage.On("SaveWithDefaultColumn", boardIn).Return(&m.Board{}, dbErr)
+		boardStorage.On("Save", boardIn).Return(&m.Board{}, dbErr)
+		boardStorage.On("WithTx", tx).Return(boardStorage)
 
 		validation := new(MockedValidation)
 		validation.On("Validate", *boardIn).Return(validationErr)
 
+		txBeginner := new(MockedTxBeginner)
+		txBeginner.On("Begin").Return(tx, nil)
+
 		boardService := &BoardService{
 			validator:    validation,
 			boardStorage: boardStorage,
+			txBeginner:   txBeginner,
 		}
 		boardOut, err := boardService.Create(boardIn)
 
 		assert.Empty(t, boardOut)
-		assert.Equal(t, err, dbErr)
+		assert.Equal(t, dbErr, err)
+	})
+	t.Run("column_save_error", func(t *testing.T) {
+		dbErr := errors.New("simple error")
+		var validationErr *v.Errors
+
+		db, dbmock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+		defer db.Close()
+		dbmock.ExpectBegin()
+		dbmock.ExpectRollback()
+		tx, _ := db.Begin()
+
+		boardStorage := new(MockedBoardStorage)
+		boardStorage.On("Save", boardIn).Return(&m.Board{Model: m.Model{ID: 123}}, nil)
+		boardStorage.On("WithTx", tx).Return(boardStorage)
+
+		column := &m.Column{Name: "Default", Position: DefaultColPos, BoardID: 123}
+		columnStorage := new(MockedColumnStorage)
+		columnStorage.On("Save", column).Return(&m.Column{}, dbErr)
+		columnStorage.On("WithTx", tx).Return(columnStorage)
+
+		validation := new(MockedValidation)
+		validation.On("Validate", *boardIn).Return(validationErr)
+
+		txBeginner := new(MockedTxBeginner)
+		txBeginner.On("Begin").Return(tx, nil)
+
+		boardService := &BoardService{
+			validator:     validation,
+			boardStorage:  boardStorage,
+			columnStorage: columnStorage,
+			txBeginner:    txBeginner,
+		}
+		boardOut, err := boardService.Create(boardIn)
+
+		assert.Empty(t, boardOut)
+		assert.Equal(t, dbErr, err)
+	})
+	t.Run("transaction_begin_error", func(t *testing.T) {
+		txErr := errors.New("tx error")
+		var validationErr *v.Errors
+
+		db, dbmock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+		defer db.Close()
+		dbmock.ExpectBegin()
+		tx, _ := db.Begin()
+
+		validation := new(MockedValidation)
+		validation.On("Validate", *boardIn).Return(validationErr)
+
+		txBeginner := new(MockedTxBeginner)
+		txBeginner.On("Begin").Return(tx, txErr)
+
+		boardService := &BoardService{
+			validator:  validation,
+			txBeginner: txBeginner,
+		}
+		boardOut, err := boardService.Create(boardIn)
+
+		assert.Empty(t, boardOut)
+		assert.Equal(t, txErr, err)
+	})
+
+	t.Run("transaction_commit_error", func(t *testing.T) {
+		txErr := errors.New("tx error")
+		var validationErr *v.Errors
+
+		db, dbmock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+		}
+		defer db.Close()
+		dbmock.ExpectBegin()
+		dbmock.ExpectCommit().WillReturnError(txErr)
+		tx, _ := db.Begin()
+
+		savedBoard := &m.Board{Model: m.Model{ID: 123}, Name: "dummy"}
+		boardStorage := new(MockedBoardStorage)
+		boardStorage.On("Save", boardIn).Return(savedBoard, nil)
+		boardStorage.On("WithTx", tx).Return(boardStorage)
+
+		validation := new(MockedValidation)
+		validation.On("Validate", *boardIn).Return(validationErr)
+
+		column := &m.Column{Name: "Default", Position: DefaultColPos, BoardID: savedBoard.ID}
+		columnStorage := new(MockedColumnStorage)
+		columnStorage.On("Save", column).Return(column, nil)
+		columnStorage.On("WithTx", tx).Return(columnStorage)
+
+		txBeginner := new(MockedTxBeginner)
+		txBeginner.On("Begin").Return(tx, nil)
+
+		boardService := &BoardService{
+			validator:     validation,
+			boardStorage:  boardStorage,
+			columnStorage: columnStorage,
+			txBeginner:    txBeginner,
+		}
+
+		resultBoard, err := boardService.Create(boardIn)
+		assert.Empty(t, resultBoard)
+		assert.Equal(t, txErr, err)
 	})
 }
 

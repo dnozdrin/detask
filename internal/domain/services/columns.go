@@ -8,39 +8,32 @@ import (
 // DefaultColPos is the default position for columns that are created internally
 const DefaultColPos = 1000
 
-// ColumnStorage represents an interface for interaction with columns DAO
-type ColumnStorage interface {
-	// Save will persist the provided column
-	Save(*m.Column) (*m.Column, error)
-	// FindOneById should return a column with the provided ID
-	FindOneById(uint) (*m.Column, error)
-	// Find should return a slice of columns pointers sorted by position, that meet the
-	// provided demand
-	Find(ColumnDemand) ([]*m.Column, error)
-	// Update should update all column fields by the provided data
-	Update(*m.Column) (*m.Column, error)
-	// Delete should set current deletion time to a column with the provided ID
-	// and to all dependant records
-	Delete(uint) error
-}
-
 // ColumnService is an interactor for work with columns
 type ColumnService struct {
 	validator     v.Validator
 	columnStorage ColumnStorage
+	taskStorage   TaskStorage
+	txBeginner    TxBeginner
 }
 
 // NewColumnService is a column service constructor
-func NewColumnService(validator v.Validator, columnStorage ColumnStorage) *ColumnService {
-	return &ColumnService{
+func NewColumnService(
+	validator v.Validator,
+	columnStorage ColumnStorage,
+	taskStorage TaskStorage,
+	txBeginner TxBeginner,
+) ColumnService {
+	return ColumnService{
 		columnStorage: columnStorage,
+		taskStorage:   taskStorage,
 		validator:     validator,
+		txBeginner:    txBeginner,
 	}
 }
 
 // Create will create a new column with the provided payload. Returns the
 // operation result with possible validation or saving errors
-func (c *ColumnService) Create(column *m.Column) (*m.Column, error) {
+func (c ColumnService) Create(column *m.Column) (*m.Column, error) {
 	if err := c.validator.Validate(*column); err != nil {
 		return nil, err
 	}
@@ -50,19 +43,19 @@ func (c *ColumnService) Create(column *m.Column) (*m.Column, error) {
 
 // Find will return all not deleted columns and an error in case
 // it occurred while fetching records from the storage
-func (c *ColumnService) Find(demand ColumnDemand) ([]*m.Column, error) {
+func (c ColumnService) Find(demand ColumnDemand) ([]*m.Column, error) {
 	return c.columnStorage.Find(demand)
 }
 
 // FindOneById will return a pointer to the column requested by id and
 // an error in case it occurred while fetching the record from the storage
-func (c *ColumnService) FindOneById(ID uint) (*m.Column, error) {
+func (c ColumnService) FindOneById(ID uint) (*m.Column, error) {
 	return c.columnStorage.FindOneById(ID)
 }
 
 // Update will update the column record. Returns the operation result
 // with possible validation or saving errors
-func (c *ColumnService) Update(column *m.Column) (*m.Column, error) {
+func (c ColumnService) Update(column *m.Column) (*m.Column, error) {
 	if err := c.validator.Validate(*column); err != nil {
 		return nil, err
 	}
@@ -70,8 +63,45 @@ func (c *ColumnService) Update(column *m.Column) (*m.Column, error) {
 	return c.columnStorage.Update(column)
 }
 
-// Delete will mark a record with the given ID as deleted as well as all
-// the dependant records
-func (c *ColumnService) Delete(ID uint) error {
-	return c.columnStorage.Delete(ID)
+// Delete will the column with the provided ID. The last column cannot be deleted.
+// When a column is deleted, its tasks are moved to the column to the left of the
+// current or to the right of the current if the curring is the leftmost
+func (c ColumnService) Delete(ID uint) error {
+	tx, err := c.txBeginner.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = tx.Rollback() }()
+	columnStorage := c.columnStorage.WithTx(tx)
+	column, err := columnStorage.FindOneById(ID)
+	if err != nil {
+		return ErrRecordNotFound
+	}
+
+	columnsNum, err := columnStorage.CountColumnsByBoard(column.BoardID)
+	if err != nil {
+		return err
+	}
+	if columnsNum == 1 {
+		return ErrLastColumn
+	}
+
+	targetColumn, err := columnStorage.FindColumnToTheLeft(ID)
+	if err != nil {
+		targetColumn, err = columnStorage.FindColumnToTheRight(ID)
+		if err != nil {
+			return ErrTargetColumn
+		}
+	}
+	taskStorage := c.taskStorage.WithTx(tx)
+	if err = taskStorage.MoveToColumn(ID, targetColumn); err != nil {
+		return err
+	}
+
+	if err = columnStorage.Delete(ID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
