@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"time"
 
-	"github.com/dnozdrin/detask/internal/domain/services"
+	sv "github.com/dnozdrin/detask/internal/domain/services"
 	"github.com/lib/pq"
 
 	"github.com/dnozdrin/detask/internal/domain/models"
@@ -15,13 +15,13 @@ import (
 
 // TaskDAO is a data access object for boards
 type TaskDAO struct {
-	db  db
+	db  querier
 	log log.Logger
 }
 
 // NewTaskDAO represents a TaskDAO constructor
-func NewTaskDAO(db db, log log.Logger) *TaskDAO {
-	return &TaskDAO{
+func NewTaskDAO(db querier, log log.Logger) TaskDAO {
+	return TaskDAO{
 		db:  db,
 		log: log,
 	}
@@ -35,8 +35,8 @@ func (dao TaskDAO) Save(task *models.Task) (*models.Task, error) {
 		return nil, errors.New("nil tasks pointer given")
 	}
 	if task.ID > 0 {
-		dao.log.Warnf("tasks storage: %v, ID: %d", services.ErrRecordAlreadyExist, task.ID)
-		return nil, services.ErrRecordAlreadyExist
+		dao.log.Warnf("tasks storage: %v, ID: %d", sv.ErrRecordAlreadyExist, task.ID)
+		return nil, sv.ErrRecordAlreadyExist
 	}
 
 	stmt, err := dao.db.Prepare(`
@@ -61,9 +61,9 @@ func (dao TaskDAO) Save(task *models.Task) (*models.Task, error) {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
 			switch pgErr.Constraint {
 			case "tasks_column_fkey":
-				err = services.ErrColumnRelation
+				err = sv.ErrColumnRelation
 			case "tasks_position_column_key":
-				err = services.ErrPositionDuplicate
+				err = sv.ErrPositionDuplicate
 			default:
 				dao.log.Errorf("tasks storage: integrity constraint violation: %v", err)
 			}
@@ -93,14 +93,14 @@ func (dao TaskDAO) FindOneById(ID uint) (*models.Task, error) {
 			return nil, err
 		}
 
-		return nil, services.ErrRecordNotFound
+		return nil, sv.ErrRecordNotFound
 	}
 
 	return task, err
 }
 
 // Find will return all found tasks that meet the provided demand or an error
-func (dao TaskDAO) Find(demand services.TaskDemand) ([]*models.Task, error) {
+func (dao TaskDAO) Find(demand sv.TaskDemand) ([]*models.Task, error) {
 	tasks := make([]*models.Task, 0)
 
 	const querySelect = "t.id, t.created_at, t.updated_at, t.name, t.description, t.column, t.position"
@@ -108,7 +108,7 @@ func (dao TaskDAO) Find(demand services.TaskDemand) ([]*models.Task, error) {
 
 	where = "1=1"
 	if boardID, ok := demand["board"]; ok {
-		join = "join \"columns\" c on t.column = c.id"
+		join = `join "columns" c on t.column = c.id`
 		where = where + fmt.Sprintf(" and c.board = %d", boardID)
 	}
 	if columnID, ok := demand["column"]; ok {
@@ -174,13 +174,13 @@ func (dao TaskDAO) Update(task *models.Task) (*models.Task, error) {
 		&task.Position,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			err = services.ErrRecordNotFound
+			err = sv.ErrRecordNotFound
 		} else if pgErr, ok := err.(*pq.Error); ok && pgErr.Code.Class().Name() == "integrity_constraint_violation" {
 			switch pgErr.Constraint {
 			case "tasks_column_fkey":
-				err = services.ErrColumnRelation
+				err = sv.ErrColumnRelation
 			case "tasks_position_column_key":
-				err = services.ErrPositionDuplicate
+				err = sv.ErrPositionDuplicate
 			default:
 				dao.log.Errorf("tasks storage: integrity constraint violation: %v", err)
 			}
@@ -194,13 +194,33 @@ func (dao TaskDAO) Update(task *models.Task) (*models.Task, error) {
 	return task, nil
 }
 
+// MoveToColumn will move all tasks from source column to target column
+func (dao TaskDAO) MoveToColumn(sourceID, targetID uint) error {
+	if _, err := dao.db.Exec(`update tasks set "column" = $1 where "column" = $2`, targetID, sourceID); err != nil {
+		dao.log.Errorf(
+			"tasks storage: error while moving tasks from column %d to column %d: %v",
+			sourceID,
+			targetID,
+			err,
+		)
+		return err
+	}
+
+	return nil
+}
+
 // Delete will delete the record in the database
 func (dao TaskDAO) Delete(ID uint) error {
-	_, err := dao.db.Exec("delete from tasks where id = $1", ID)
-	if err != nil {
+	if _, err := dao.db.Exec("delete from tasks where id = $1", ID); err != nil {
 		dao.log.Errorf("tasks storage: error while deleting a row: %v", err)
 		return err
 	}
 
-	return err
+	return nil
+}
+
+// WithTx will return the TaskDAO that will use the provided transaction
+func (dao TaskDAO) WithTx(tx *sql.Tx) sv.TaskStorage {
+	dao.db = tx
+	return dao
 }
